@@ -616,6 +616,28 @@
   }
   .remarks-input::placeholder { color: #a3acb3; font-style: italic; }
 
+  /* === Owner / POC inline editable === */
+  .owner-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d8dde2;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 11px;
+    background: #fafbfa;
+    color: #1f2933;
+    outline: none;
+  }
+  .owner-input:focus {
+    border-color: #2a8f5e;
+    background: #fff;
+  }
+  .owner-input::placeholder {
+    color: #a3acb3;
+    font-style: italic;
+    font-size: 10.5px;
+  }
+
   /* === Info link === */
   .info-link {
     display: inline-block;
@@ -2081,11 +2103,15 @@ async function loadStatusFromServer() {
     userCompliances = s.userCompliances || [];
     priorityMap = s.priorityMap || {};
     remarksMap = s.remarksMap || {};
+    ownerOverrideMap = s.ownerOverrideMap || {};
+    pocOverrideMap   = s.pocOverrideMap   || {};
     dismissedAutoIds = s.dismissedAutoIds || dismissedAutoIds;
     localStorage.setItem('comp-status', JSON.stringify(statusMap));
     localStorage.setItem('comp-user', JSON.stringify(userCompliances));
     localStorage.setItem('comp-priority', JSON.stringify(priorityMap));
     localStorage.setItem('comp-remarks', JSON.stringify(remarksMap));
+    localStorage.setItem('comp-owner', JSON.stringify(ownerOverrideMap));
+    localStorage.setItem('comp-poc', JSON.stringify(pocOverrideMap));
     localStorage.setItem('comp-dismissed-auto', JSON.stringify(dismissedAutoIds));
   } catch (e) {
     console.warn('Shared compliance state load failed, using localStorage fallback:', e);
@@ -2093,6 +2119,8 @@ async function loadStatusFromServer() {
     userCompliances = JSON.parse(localStorage.getItem('comp-user') || '[]');
     priorityMap = JSON.parse(localStorage.getItem('comp-priority') || '{}');
     remarksMap = JSON.parse(localStorage.getItem('comp-remarks') || '{}');
+    ownerOverrideMap = JSON.parse(localStorage.getItem('comp-owner') || '{}');
+    pocOverrideMap   = JSON.parse(localStorage.getItem('comp-poc')   || '{}');
   }
 }
 let _saveTimer = null;
@@ -2105,7 +2133,7 @@ async function syncStatusToServer() {
     await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: { statusMap, userCompliances, priorityMap, remarksMap, dismissedAutoIds } }),
+      body: JSON.stringify({ state: { statusMap, userCompliances, priorityMap, remarksMap, ownerOverrideMap, pocOverrideMap, dismissedAutoIds } }),
     });
   } catch (e) {
     console.warn('Shared compliance state save failed (changes stayed in localStorage):', e);
@@ -2195,6 +2223,34 @@ function onChangeRemarks(id, value) {
   const c = allCompliances().find(x => compId(x) === id);
   if (!c) return;
   setRemarks(c, value);
+}
+
+// === Process Owner + Current POC overrides (team fills in actual names) ===
+let ownerOverrideMap = JSON.parse(localStorage.getItem('comp-owner') || '{}');
+let pocOverrideMap   = JSON.parse(localStorage.getItem('comp-poc')   || '{}');
+function getOwnerName(c) { return ownerOverrideMap[compId(c)] || ''; }
+function getPocName(c)   { return pocOverrideMap[compId(c)]   || ''; }
+function setOwnerName(c, value) {
+  const id = compId(c);
+  if (value && value.trim()) ownerOverrideMap[id] = value;
+  else delete ownerOverrideMap[id];
+  localStorage.setItem('comp-owner', JSON.stringify(ownerOverrideMap));
+  scheduleSyncToServer();
+}
+function setPocName(c, value) {
+  const id = compId(c);
+  if (value && value.trim()) pocOverrideMap[id] = value;
+  else delete pocOverrideMap[id];
+  localStorage.setItem('comp-poc', JSON.stringify(pocOverrideMap));
+  scheduleSyncToServer();
+}
+function onChangeOwner(id, value) {
+  const c = allCompliances().find(x => compId(x) === id);
+  if (c) setOwnerName(c, value);
+}
+function onChangePoc(id, value) {
+  const c = allCompliances().find(x => compId(x) === id);
+  if (c) setPocName(c, value);
 }
 
 function isCompleted(c) { return getStatus(c) === 'completed'; }
@@ -2452,29 +2508,31 @@ function renderTable(items, showDeptCol) {
   if (showDeptCol) {
     thead.innerHTML = `
       <th style="width: 3%;">#</th>
-      <th style="width: 7%;">Status</th>
-      <th style="width: 7%;">Priority</th>
-      <th style="width: 7%;">Dept</th>
-      <th style="width: 17%;">Description</th>
-      <th style="width: 10%;">Statutory Reference</th>
-      <th style="width: 6%;">Frequency</th>
-      <th style="width: 8%;">Due dates</th>
-      <th style="width: 8%;">Owner / POC</th>
-      <th style="width: 7%;">Function</th>
-      <th style="width: 14%;">Remarks</th>
+      <th style="width: 6%;">Status</th>
+      <th style="width: 6%;">Priority</th>
+      <th style="width: 6%;">Dept</th>
+      <th style="width: 14%;">Description</th>
+      <th style="width: 9%;">Statutory Reference</th>
+      <th style="width: 5%;">Frequency</th>
+      <th style="width: 7%;">Due dates</th>
+      <th style="width: 8%;">Process Owner</th>
+      <th style="width: 8%;">Current POC</th>
+      <th style="width: 6%;">Function</th>
+      <th style="width: 16%;">Remarks</th>
       <th style="width: 6%;">Info</th>`;
   } else {
     thead.innerHTML = `
       <th style="width: 3%;">#</th>
-      <th style="width: 8%;">Status</th>
-      <th style="width: 8%;">Priority</th>
-      <th style="width: 21%;">Description</th>
-      <th style="width: 11%;">Statutory Reference</th>
+      <th style="width: 7%;">Status</th>
+      <th style="width: 7%;">Priority</th>
+      <th style="width: 17%;">Description</th>
+      <th style="width: 10%;">Statutory Reference</th>
       <th style="width: 6%;">Frequency</th>
-      <th style="width: 8%;">Due dates</th>
-      <th style="width: 8%;">Owner / POC</th>
-      <th style="width: 7%;">Function</th>
-      <th style="width: 14%;">Remarks</th>
+      <th style="width: 7%;">Due dates</th>
+      <th style="width: 9%;">Process Owner</th>
+      <th style="width: 9%;">Current POC</th>
+      <th style="width: 6%;">Function</th>
+      <th style="width: 13%;">Remarks</th>
       <th style="width: 6%;">Info</th>`;
   }
 
@@ -2516,11 +2574,11 @@ function renderTable(items, showDeptCol) {
 
   const tbody = document.getElementById('comp-tbody');
   if (sortedItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 12 : 11}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 13 : 12}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
     return;
   }
 
-  const colspan = showDeptCol ? 12 : 11;
+  const colspan = showDeptCol ? 13 : 12;
   const rowsHtml = [];
   let lastType = null;
   sortedItems.forEach(({ c, originalIdx }) => {
@@ -2586,7 +2644,22 @@ function renderTable(items, showDeptCol) {
         <td><span class="small">${c.statutoryRef}</span></td>
         <td><span class="freq-pill ${freqClass(c.frequency)}">${c.frequency}</span></td>
         <td><span class="small"><b>${c.dueDates}</b><br><span style="color:#8a929a;">${c.dueDateFor !== '—' ? c.dueDateFor : ''}</span></span></td>
-        <td><span class="small"><b>${c.processOwner}</b><br><span style="color:#8a929a;">${c.currentPOC}</span></span></td>
+        <td>
+          <input class="owner-input" type="text"
+                 placeholder="${(c.processOwner || '').replace(/"/g, '&quot;')}"
+                 value="${getOwnerName(c).replace(/"/g, '&quot;')}"
+                 onchange="onChangeOwner('${compId(c)}', this.value)"
+                 onblur="onChangeOwner('${compId(c)}', this.value)"
+                 title="Suggested role: ${(c.processOwner || '').replace(/"/g, '&quot;')}. Type the actual person's name.">
+        </td>
+        <td>
+          <input class="owner-input" type="text"
+                 placeholder="${(c.currentPOC || '').replace(/"/g, '&quot;')}"
+                 value="${getPocName(c).replace(/"/g, '&quot;')}"
+                 onchange="onChangePoc('${compId(c)}', this.value)"
+                 onblur="onChangePoc('${compId(c)}', this.value)"
+                 title="Suggested role: ${(c.currentPOC || '').replace(/"/g, '&quot;')}. Type the actual person's name.">
+        </td>
         <td><span class="small">${c.function}</span></td>
         <td>
           <input class="remarks-input" type="text" placeholder="Add a note..." value="${remarks.replace(/"/g, '&quot;')}"

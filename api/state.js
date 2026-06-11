@@ -25,6 +25,8 @@ export default async function handler(req, res) {
         userCompliances: [],
         priorityMap: {},
         remarksMap: {},
+        ownerOverrideMap: {},
+        pocOverrideMap: {},
         dismissedAutoIds: [],
       });
     }
