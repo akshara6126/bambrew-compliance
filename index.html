@@ -2454,13 +2454,12 @@ function renderTable(items, showDeptCol) {
       <th style="width: 3%;">#</th>
       <th style="width: 7%;">Status</th>
       <th style="width: 7%;">Priority</th>
-      <th style="width: 6%;">Type</th>
-      <th style="width: 6%;">Dept</th>
-      <th style="width: 15%;">Description</th>
-      <th style="width: 9%;">Statutory Reference</th>
+      <th style="width: 7%;">Dept</th>
+      <th style="width: 17%;">Description</th>
+      <th style="width: 10%;">Statutory Reference</th>
       <th style="width: 6%;">Frequency</th>
-      <th style="width: 7%;">Due dates</th>
-      <th style="width: 7%;">Owner / POC</th>
+      <th style="width: 8%;">Due dates</th>
+      <th style="width: 8%;">Owner / POC</th>
       <th style="width: 7%;">Function</th>
       <th style="width: 14%;">Remarks</th>
       <th style="width: 6%;">Info</th>`;
@@ -2469,14 +2468,13 @@ function renderTable(items, showDeptCol) {
       <th style="width: 3%;">#</th>
       <th style="width: 8%;">Status</th>
       <th style="width: 8%;">Priority</th>
-      <th style="width: 6%;">Type</th>
-      <th style="width: 18%;">Description</th>
-      <th style="width: 10%;">Statutory Reference</th>
+      <th style="width: 21%;">Description</th>
+      <th style="width: 11%;">Statutory Reference</th>
       <th style="width: 6%;">Frequency</th>
-      <th style="width: 7%;">Due dates</th>
-      <th style="width: 7%;">Owner / POC</th>
-      <th style="width: 6%;">Function</th>
-      <th style="width: 15%;">Remarks</th>
+      <th style="width: 8%;">Due dates</th>
+      <th style="width: 8%;">Owner / POC</th>
+      <th style="width: 7%;">Function</th>
+      <th style="width: 14%;">Remarks</th>
       <th style="width: 6%;">Info</th>`;
   }
 
@@ -2518,11 +2516,11 @@ function renderTable(items, showDeptCol) {
 
   const tbody = document.getElementById('comp-tbody');
   if (sortedItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 13 : 12}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 12 : 11}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
     return;
   }
 
-  const colspan = showDeptCol ? 13 : 12;
+  const colspan = showDeptCol ? 12 : 11;
   const rowsHtml = [];
   let lastType = null;
   sortedItems.forEach(({ c, originalIdx }) => {
@@ -2579,7 +2577,6 @@ function renderTable(items, showDeptCol) {
             ${priorityOptions}
           </select>
         </td>
-        <td>${typePill}</td>
         ${deptCell}
         <td class="completed-desc">
           <b>${c.description}</b>
