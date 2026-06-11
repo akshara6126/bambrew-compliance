@@ -542,24 +542,25 @@
   .status-due-soon  { background: #fdecc8; color: #7a4d05; }
   .status-ok        { background: #d6efe0; color: #155c3a; }
 
-  /* === RAG status dropdown === */
+  /* === RAG status dropdown — compact === */
   .rag-select {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
     border: 0;
-    padding: 5px 22px 5px 12px;
-    border-radius: 12px;
+    padding: 4px 18px 4px 8px;
+    border-radius: 10px;
     font-family: inherit;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     cursor: pointer;
     outline: none;
-    background-position: right 6px center;
+    background-position: right 5px center;
     background-repeat: no-repeat;
-    background-size: 10px;
-    min-width: 110px;
+    background-size: 8px;
+    min-width: 78px;
+    width: 100%;
   }
   .rag-select.rag-not-started {
     background-color: #fadcdc; color: #842121;
@@ -574,15 +575,16 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%23155c3a'><path d='M0 0l5 6 5-6z'/></svg>");
   }
 
-  /* === Priority dropdown === */
+  /* === Priority dropdown — compact === */
   .pri-select {
     appearance: none; -webkit-appearance: none; -moz-appearance: none;
-    border: 0; padding: 5px 22px 5px 10px; border-radius: 12px;
+    border: 0; padding: 4px 18px 4px 8px; border-radius: 10px;
     font-family: inherit; font-size: 10.5px; font-weight: 700;
-    letter-spacing: 0.3px; cursor: pointer; outline: none;
-    background-position: right 6px center;
-    background-repeat: no-repeat; background-size: 9px;
-    min-width: 130px;
+    letter-spacing: 0.2px; cursor: pointer; outline: none;
+    background-position: right 5px center;
+    background-repeat: no-repeat; background-size: 8px;
+    min-width: 78px;
+    width: 100%;
   }
   .pri-very-important {
     background-color: #fadcdc; color: #842121;
@@ -596,6 +598,40 @@
     background-color: #e6e8eb; color: #3f4a55;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%233f4a55'><path d='M0 0l5 6 5-6z'/></svg>");
   }
+  /* === Remarks input — inline editable === */
+  .remarks-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d8dde2;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 11px;
+    background: #fafbfa;
+    color: #1f2933;
+    outline: none;
+  }
+  .remarks-input:focus {
+    border-color: #2a8f5e;
+    background: #fff;
+  }
+  .remarks-input::placeholder { color: #a3acb3; font-style: italic; }
+
+  /* === Info link === */
+  .info-link {
+    display: inline-block;
+    background: #eef4fb;
+    color: #1c4170;
+    border: 1px solid #c5d4e3;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 10px;
+    text-decoration: none;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+  }
+  .info-link:hover { background: #1c4170; color: #fff; border-color: #1c4170; }
+
   .pri-not-important {
     background-color: #f0f2f4; color: #8a929a;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%238a929a'><path d='M0 0l5 6 5-6z'/></svg>");
@@ -2044,16 +2080,19 @@ async function loadStatusFromServer() {
     statusMap = s.statusMap || {};
     userCompliances = s.userCompliances || [];
     priorityMap = s.priorityMap || {};
+    remarksMap = s.remarksMap || {};
     dismissedAutoIds = s.dismissedAutoIds || dismissedAutoIds;
     localStorage.setItem('comp-status', JSON.stringify(statusMap));
     localStorage.setItem('comp-user', JSON.stringify(userCompliances));
     localStorage.setItem('comp-priority', JSON.stringify(priorityMap));
+    localStorage.setItem('comp-remarks', JSON.stringify(remarksMap));
     localStorage.setItem('comp-dismissed-auto', JSON.stringify(dismissedAutoIds));
   } catch (e) {
     console.warn('Shared compliance state load failed, using localStorage fallback:', e);
     statusMap = JSON.parse(localStorage.getItem('comp-status') || '{}');
     userCompliances = JSON.parse(localStorage.getItem('comp-user') || '[]');
     priorityMap = JSON.parse(localStorage.getItem('comp-priority') || '{}');
+    remarksMap = JSON.parse(localStorage.getItem('comp-remarks') || '{}');
   }
 }
 let _saveTimer = null;
@@ -2066,7 +2105,7 @@ async function syncStatusToServer() {
     await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: { statusMap, userCompliances, priorityMap, dismissedAutoIds } }),
+      body: JSON.stringify({ state: { statusMap, userCompliances, priorityMap, remarksMap, dismissedAutoIds } }),
     });
   } catch (e) {
     console.warn('Shared compliance state save failed (changes stayed in localStorage):', e);
@@ -2141,6 +2180,23 @@ function setPriority(c, newPriority) {
 function priorityRank(p) {
   return ({ 'very-important': 0, 'important': 1, 'medium': 2, 'not-important': 3 })[p] ?? 2;
 }
+
+// === Remarks (free-text, syncs across team) ===
+let remarksMap = JSON.parse(localStorage.getItem('comp-remarks') || '{}');
+function getRemarks(c) { return remarksMap[compId(c)] || ''; }
+function setRemarks(c, value) {
+  const id = compId(c);
+  if (value && value.trim()) remarksMap[id] = value;
+  else delete remarksMap[id];
+  localStorage.setItem('comp-remarks', JSON.stringify(remarksMap));
+  scheduleSyncToServer();
+}
+function onChangeRemarks(id, value) {
+  const c = allCompliances().find(x => compId(x) === id);
+  if (!c) return;
+  setRemarks(c, value);
+}
+
 function isCompleted(c) { return getStatus(c) === 'completed'; }
 function deptStats(id) {
   const items = allCompliances().filter(c => c.dept === id);
@@ -2395,33 +2451,33 @@ function renderTable(items, showDeptCol) {
   const thead = document.querySelector('.comp-table thead tr');
   if (showDeptCol) {
     thead.innerHTML = `
-      <th style="width: 4%;">S.No</th>
-      <th style="width: 10%;">Status</th>
-      <th style="width: 10%;">Priority</th>
-      <th style="width: 7%;">Type</th>
-      <th style="width: 7%;">Dept</th>
-      <th style="width: 14%;">Description</th>
-      <th style="width: 10%;">Statutory Reference</th>
+      <th style="width: 3%;">#</th>
+      <th style="width: 7%;">Status</th>
+      <th style="width: 7%;">Priority</th>
+      <th style="width: 6%;">Type</th>
+      <th style="width: 6%;">Dept</th>
+      <th style="width: 15%;">Description</th>
+      <th style="width: 9%;">Statutory Reference</th>
       <th style="width: 6%;">Frequency</th>
-      <th style="width: 7%;">Due date for</th>
       <th style="width: 7%;">Due dates</th>
-      <th style="width: 6%;">Process Owner</th>
-      <th style="width: 6%;">Current POC</th>
-      <th style="width: 6%;">Function</th>`;
+      <th style="width: 7%;">Owner / POC</th>
+      <th style="width: 7%;">Function</th>
+      <th style="width: 14%;">Remarks</th>
+      <th style="width: 6%;">Info</th>`;
   } else {
     thead.innerHTML = `
-      <th style="width: 4%;">S.No</th>
-      <th style="width: 10%;">Status</th>
-      <th style="width: 10%;">Priority</th>
-      <th style="width: 7%;">Type</th>
-      <th style="width: 17%;">Description</th>
-      <th style="width: 11%;">Statutory Reference</th>
+      <th style="width: 3%;">#</th>
+      <th style="width: 8%;">Status</th>
+      <th style="width: 8%;">Priority</th>
+      <th style="width: 6%;">Type</th>
+      <th style="width: 18%;">Description</th>
+      <th style="width: 10%;">Statutory Reference</th>
       <th style="width: 6%;">Frequency</th>
-      <th style="width: 7%;">Due date for</th>
       <th style="width: 7%;">Due dates</th>
-      <th style="width: 7%;">Process Owner</th>
-      <th style="width: 7%;">Current POC</th>
-      <th style="width: 7%;">Function</th>`;
+      <th style="width: 7%;">Owner / POC</th>
+      <th style="width: 6%;">Function</th>
+      <th style="width: 15%;">Remarks</th>
+      <th style="width: 6%;">Info</th>`;
   }
 
   // Apply type filter + search filter
@@ -2462,11 +2518,11 @@ function renderTable(items, showDeptCol) {
 
   const tbody = document.getElementById('comp-tbody');
   if (sortedItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 12 : 11}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 13 : 12}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
     return;
   }
 
-  const colspan = showDeptCol ? 12 : 11;
+  const colspan = showDeptCol ? 13 : 12;
   const rowsHtml = [];
   let lastType = null;
   sortedItems.forEach(({ c, originalIdx }) => {
@@ -2487,9 +2543,9 @@ function renderTable(items, showDeptCol) {
       ? `<td><span style="font-size:11px; color:#0f2a1e; font-weight:700;">${dept.icon} ${dept.name}</span></td>`
       : '';
     const statusOptions = [
-      ['not-started', '🔴 Not Started'],
-      ['in-progress', '🟡 In Progress'],
-      ['completed',   '🟢 Completed'],
+      ['not-started', '🔴 New'],
+      ['in-progress', '🟡 WIP'],
+      ['completed',   '🟢 Done'],
     ].map(([v, lbl]) => `<option value="${v}" ${status === v ? 'selected' : ''}>${lbl}</option>`).join('');
     const typePill = c.type === 'statutory'
       ? '<span class="type-pill type-statutory">⚖️ Statutory</span>'
@@ -2501,22 +2557,25 @@ function renderTable(items, showDeptCol) {
 
     const priority = getPriority(c);
     const priorityOptions = [
-      ['very-important', '🔥 Very Important'],
-      ['important',      '⚡ Important'],
-      ['medium',         '➖ Medium'],
-      ['not-important',  '💤 Not Important'],
+      ['very-important', '🔥 V.High'],
+      ['important',      '⚡ High'],
+      ['medium',         '➖ Med'],
+      ['not-important',  '💤 Low'],
     ].map(([v, lbl]) => `<option value="${v}" ${priority === v ? 'selected' : ''}>${lbl}</option>`).join('');
 
+    const remarks = getRemarks(c);
+    const infoQuery = encodeURIComponent(c.description + ' ' + (c.statutoryRef || '') + ' India compliance');
+    const infoUrl = `https://www.google.com/search?q=${infoQuery}`;
     rowsHtml.push(`
       <tr class="${rowClasses}">
         <td>${originalIdx + 1}</td>
         <td>
-          <select class="rag-select rag-${status}" onchange="onChangeStatus('${compId(c)}', this.value)">
+          <select class="rag-select rag-${status}" onchange="onChangeStatus('${compId(c)}', this.value)" title="Status: ${status.replace('-', ' ')}">
             ${statusOptions}
           </select>
         </td>
         <td>
-          <select class="pri-select pri-${priority}" onchange="onChangePriority('${compId(c)}', this.value)">
+          <select class="pri-select pri-${priority}" onchange="onChangePriority('${compId(c)}', this.value)" title="Priority: ${priority.replace('-', ' ')}">
             ${priorityOptions}
           </select>
         </td>
@@ -2529,11 +2588,18 @@ function renderTable(items, showDeptCol) {
         </td>
         <td><span class="small">${c.statutoryRef}</span></td>
         <td><span class="freq-pill ${freqClass(c.frequency)}">${c.frequency}</span></td>
-        <td>${c.dueDateFor}</td>
-        <td>${c.dueDates}</td>
-        <td>${c.processOwner}</td>
-        <td>${c.currentPOC}</td>
-        <td>${c.function}</td>
+        <td><span class="small"><b>${c.dueDates}</b><br><span style="color:#8a929a;">${c.dueDateFor !== '—' ? c.dueDateFor : ''}</span></span></td>
+        <td><span class="small"><b>${c.processOwner}</b><br><span style="color:#8a929a;">${c.currentPOC}</span></span></td>
+        <td><span class="small">${c.function}</span></td>
+        <td>
+          <input class="remarks-input" type="text" placeholder="Add a note..." value="${remarks.replace(/"/g, '&quot;')}"
+                 onchange="onChangeRemarks('${compId(c)}', this.value)"
+                 onblur="onChangeRemarks('${compId(c)}', this.value)"
+                 title="Anyone on the team can add remarks here. Saves to all devices automatically.">
+        </td>
+        <td style="text-align:center;">
+          <a href="${infoUrl}" target="_blank" class="info-link" title="Learn more about this compliance (opens Google search)">🔗 Info</a>
+        </td>
       </tr>`);
   });
   tbody.innerHTML = rowsHtml.join('');

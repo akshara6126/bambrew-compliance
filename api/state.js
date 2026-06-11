@@ -24,6 +24,7 @@ export default async function handler(req, res) {
         statusMap: {},
         userCompliances: [],
         priorityMap: {},
+        remarksMap: {},
         dismissedAutoIds: [],
       });
     }
