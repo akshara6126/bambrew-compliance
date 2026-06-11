@@ -176,6 +176,82 @@
     font-family: inherit;
   }
   .back-btn:hover { background: #2a8f5e; color: #fff; }
+
+  .add-btn {
+    background: #2a8f5e;
+    color: #fff;
+    border: 0;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 12px;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+  }
+  .add-btn:hover { background: #1e6f48; }
+  .add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .delete-btn {
+    background: transparent;
+    color: #b03030;
+    border: 1px solid #f1b3b3;
+    padding: 3px 9px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 10.5px;
+    font-family: inherit;
+    margin-left: 6px;
+  }
+  .delete-btn:hover { background: #b03030; color: #fff; }
+
+  .user-added-badge {
+    display: inline-block;
+    background: #d6efe0;
+    color: #155c3a;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* === Add Compliance modal form === */
+  .form-modal {
+    max-width: 560px;
+    width: 92%;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-row label {
+    display: block;
+    font-size: 10.5px;
+    color: #57636d;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .form-row input, .form-row select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d8dde2;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-family: inherit;
+    background: #fafbfa;
+    outline: none;
+    color: #1f2933;
+  }
+  .form-row input:focus, .form-row select:focus { border-color: #2a8f5e; }
   .dept-title-row {
     display: flex;
     align-items: center;
@@ -449,6 +525,7 @@
           <div class="dept-meta" id="dept-meta">—</div>
         </div>
       </div>
+      <button class="add-btn" id="add-btn" onclick="openAddCompliance()">+ Add Compliance</button>
     </div>
 
     <div class="stats-strip" id="stats-strip"></div>
@@ -687,8 +764,11 @@ let managementMode = false;
 // On load: fetched from /api/state (shared across the team).
 // On change: debounced POST back to /api/state so every teammate's next reload sees it.
 // Falls back to localStorage if the API is offline (so the dashboard still works).
-function compId(c) { return `${c.dept}-${c.sNo}`; }
+function compId(c) { return c.id ? c.id : `${c.dept}-${c.sNo}`; }
 let statusMap = {};
+let userCompliances = [];
+
+function allCompliances() { return [...COMPLIANCES, ...userCompliances]; }
 
 async function loadStatusFromServer() {
   try {
@@ -696,10 +776,13 @@ async function loadStatusFromServer() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const s = await r.json();
     statusMap = s.statusMap || {};
+    userCompliances = s.userCompliances || [];
     localStorage.setItem('comp-status', JSON.stringify(statusMap));
+    localStorage.setItem('comp-user', JSON.stringify(userCompliances));
   } catch (e) {
     console.warn('Shared compliance state load failed, using localStorage fallback:', e);
     statusMap = JSON.parse(localStorage.getItem('comp-status') || '{}');
+    userCompliances = JSON.parse(localStorage.getItem('comp-user') || '[]');
   }
 }
 let _saveTimer = null;
@@ -712,11 +795,54 @@ async function syncStatusToServer() {
     await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: { statusMap } }),
+      body: JSON.stringify({ state: { statusMap, userCompliances } }),
     });
   } catch (e) {
     console.warn('Shared compliance state save failed (changes stayed in localStorage):', e);
   }
+}
+
+// === Add / delete user-added compliances ===
+function addUserCompliance(data) {
+  const id = `user-${data.dept}-${Date.now()}`;
+  // assign sNo as next available for that dept (after both built-in + user-added)
+  const existing = allCompliances().filter(c => c.dept === data.dept);
+  const nextSno = existing.length + 1;
+  const newComp = {
+    id,
+    dept: data.dept,
+    type: data.type,
+    sNo: nextSno,
+    description: data.description,
+    statutoryRef: data.statutoryRef,
+    frequency: data.frequency,
+    dueDateFor: data.dueDateFor,
+    dueDates: data.dueDates,
+    processOwner: data.processOwner,
+    currentPOC: data.currentPOC,
+    function: data.function,
+    userAdded: true,
+  };
+  userCompliances.push(newComp);
+  localStorage.setItem('comp-user', JSON.stringify(userCompliances));
+  scheduleSyncToServer();
+  return newComp;
+}
+function deleteUserCompliance(id) {
+  if (!confirm('Delete this compliance entry? This cannot be undone.')) return;
+  userCompliances = userCompliances.filter(c => c.id !== id);
+  delete statusMap[id];
+  localStorage.setItem('comp-user', JSON.stringify(userCompliances));
+  localStorage.setItem('comp-status', JSON.stringify(statusMap));
+  scheduleSyncToServer();
+  // re-render
+  if (managementMode) showManagement();
+  else {
+    const titleText = document.getElementById('dept-title').textContent;
+    const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
+    if (dept) showDept(dept.id);
+  }
+  renderLanding();
 }
 
 function getStatus(c) { return statusMap[compId(c)] || 'not-started'; }
@@ -727,7 +853,7 @@ function setStatus(c, newStatus) {
 }
 function isCompleted(c) { return getStatus(c) === 'completed'; }
 function deptStats(id) {
-  const items = COMPLIANCES.filter(c => c.dept === id);
+  const items = allCompliances().filter(c => c.dept === id);
   const total = items.length;
   const done = items.filter(isCompleted).length;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
@@ -813,19 +939,36 @@ function checkPassword() {
 }
 
 function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('show');
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.remove('show');
+  // restore original password modal so next open isn't a wide form
+  setTimeout(() => {
+    const modal = overlay.querySelector('.modal');
+    modal.classList.remove('form-modal');
+    modal.innerHTML = `
+      <h3 id="modal-title">🔐 Enter password</h3>
+      <p id="modal-subtitle">This area is restricted. Enter the team password to continue.</p>
+      <input type="password" id="modal-input" autofocus onkeydown="if(event.key==='Enter') checkPassword();" placeholder="Password">
+      <div class="modal-error" id="modal-error"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="checkPassword()">Enter →</button>
+      </div>`;
+  }, 250);
 }
 
 function showDept(id) {
   managementMode = false;
   const dept = DEPARTMENTS.find(d => d.id === id);
-  const items = COMPLIANCES.filter(c => c.dept === id);
+  const items = allCompliances().filter(c => c.dept === id);
 
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dept-view').classList.add('active');
   document.getElementById('dept-title').textContent = `${dept.icon} ${dept.name}`;
   document.getElementById('dept-meta').textContent =
     `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
+  document.getElementById('add-btn').style.display = 'inline-block';
+  document.getElementById('add-btn').dataset.deptId = id;
 
   renderStats(items);
   renderTable(items, false);
@@ -836,9 +979,101 @@ function showManagement() {
   document.getElementById('dept-view').classList.add('active');
   document.getElementById('dept-title').textContent = '🔓 Management View · All Departments';
   document.getElementById('dept-meta').textContent =
-    `${COMPLIANCES.length} compliance items across ${DEPARTMENTS.length} departments`;
-  renderStats(COMPLIANCES);
-  renderTable(COMPLIANCES, true);
+    `${allCompliances().length} compliance items across ${DEPARTMENTS.length} departments`;
+  document.getElementById('add-btn').style.display = 'none';
+  renderStats(allCompliances());
+  renderTable(allCompliances(), true);
+}
+
+// === Add Compliance modal ===
+function openAddCompliance() {
+  const deptId = document.getElementById('add-btn').dataset.deptId;
+  const dept = DEPARTMENTS.find(d => d.id === deptId);
+  if (!dept) return;
+  const html = `
+    <h3>+ Add new compliance for ${dept.icon} ${dept.name}</h3>
+    <p>Fill in the details. The new row syncs to every teammate after saving.</p>
+    <div class="form-grid">
+      <div class="form-row full">
+        <label>Description *</label>
+        <input id="ac-description" placeholder="What the compliance is" />
+      </div>
+      <div class="form-row">
+        <label>Type *</label>
+        <select id="ac-type">
+          <option value="statutory">⚖️ Statutory (legal)</option>
+          <option value="internal">🏢 Internal (process)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Frequency</label>
+        <select id="ac-frequency">
+          <option>Monthly</option>
+          <option>Quarterly</option>
+          <option>Annual</option>
+          <option>Event-based</option>
+        </select>
+      </div>
+      <div class="form-row full">
+        <label>Statutory Reference</label>
+        <input id="ac-statutoryRef" placeholder="e.g. GST Act, 2017 · Companies Act Sec. 96" />
+      </div>
+      <div class="form-row">
+        <label>Due date for</label>
+        <input id="ac-dueDateFor" placeholder="e.g. Previous month / FY 2025-26" />
+      </div>
+      <div class="form-row">
+        <label>Due dates</label>
+        <input id="ac-dueDates" placeholder="e.g. 20th of every month" />
+      </div>
+      <div class="form-row">
+        <label>Process Owner</label>
+        <input id="ac-processOwner" placeholder="Team / role" />
+      </div>
+      <div class="form-row">
+        <label>Current POC</label>
+        <input id="ac-currentPOC" placeholder="Person responsible" />
+      </div>
+      <div class="form-row full">
+        <label>Function</label>
+        <input id="ac-function" placeholder="e.g. Tax Compliance / Workplace Safety" />
+      </div>
+    </div>
+    <div class="modal-error" id="ac-error"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveNewCompliance('${deptId}')">Add to ${dept.name}</button>
+    </div>
+  `;
+  const overlay = document.getElementById('modal-overlay');
+  const modal = overlay.querySelector('.modal');
+  modal.classList.add('form-modal');
+  modal.innerHTML = html;
+  overlay.classList.add('show');
+  setTimeout(() => document.getElementById('ac-description').focus(), 100);
+}
+
+function saveNewCompliance(deptId) {
+  const desc = document.getElementById('ac-description').value.trim();
+  const errEl = document.getElementById('ac-error');
+  if (!desc) { errEl.textContent = '✗ Description is required.'; return; }
+
+  const data = {
+    dept: deptId,
+    type: document.getElementById('ac-type').value,
+    description: desc,
+    statutoryRef: document.getElementById('ac-statutoryRef').value.trim() || '—',
+    frequency: document.getElementById('ac-frequency').value,
+    dueDateFor: document.getElementById('ac-dueDateFor').value.trim() || '—',
+    dueDates: document.getElementById('ac-dueDates').value.trim() || '—',
+    processOwner: document.getElementById('ac-processOwner').value.trim() || '—',
+    currentPOC: document.getElementById('ac-currentPOC').value.trim() || '—',
+    function: document.getElementById('ac-function').value.trim() || '—',
+  };
+  addUserCompliance(data);
+  closeModal();
+  showDept(deptId);
+  renderLanding();
 }
 
 function renderStats(items) {
@@ -959,7 +1194,11 @@ function renderTable(items, showDeptCol) {
         </td>
         <td>${typePill}</td>
         ${deptCell}
-        <td class="completed-desc"><b>${c.description}</b></td>
+        <td class="completed-desc">
+          <b>${c.description}</b>
+          ${c.userAdded ? `<span class="user-added-badge">+ Added by team</span>
+            <button class="delete-btn" onclick="deleteUserCompliance('${c.id}')" title="Delete this compliance">✗ Delete</button>` : ''}
+        </td>
         <td><span class="small">${c.statutoryRef}</span></td>
         <td><span class="freq-pill ${freqClass(c.frequency)}">${c.frequency}</span></td>
         <td>${c.dueDateFor}</td>
@@ -973,7 +1212,7 @@ function renderTable(items, showDeptCol) {
 }
 
 function onChangeStatus(id, newStatus) {
-  const c = COMPLIANCES.find(x => compId(x) === id);
+  const c = allCompliances().find(x => compId(x) === id);
   if (!c) return;
   setStatus(c, newStatus);
   // re-render whatever's visible

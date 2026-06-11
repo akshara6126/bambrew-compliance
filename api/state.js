@@ -4,7 +4,8 @@
 //
 // State shape (matches the data structures in index.html):
 //   {
-//     statusMap: { [compId]: 'not-started' | 'in-progress' | 'completed' }
+//     statusMap:        { [compId]: 'not-started' | 'in-progress' | 'completed' },
+//     userCompliances:  [ { id, dept, type, sNo, description, statutoryRef, ... } ]
 //   }
 //
 // `compId` is `${dept}-${sNo}` — uniquely identifies each compliance row.
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const data = await kv.get(SHARED_KEY);
-      return res.status(200).json(data || { statusMap: {} });
+      return res.status(200).json(data || { statusMap: {}, userCompliances: [] });
     }
 
     if (req.method === 'POST') {
