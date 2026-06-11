@@ -168,6 +168,35 @@
     text-transform: uppercase;
   }
 
+  /* === Type filter (All / Statutory / Internal) === */
+  .type-filter {
+    display: inline-flex;
+    background: #fff;
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    gap: 2px;
+  }
+  .type-filter-btn {
+    background: transparent;
+    color: #57636d;
+    border: 0;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11.5px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .type-filter-btn:hover { background: #f4f6f8; color: #0f2a1e; }
+  .type-filter-btn.active {
+    background: #0f2a1e;
+    color: #fff;
+  }
+
   /* === Search bar === */
   .search-bar {
     display: flex;
@@ -737,6 +766,13 @@
         </div>
       </div>
       <button class="add-btn" id="add-btn" onclick="openAddCompliance()">+ Add Compliance</button>
+    </div>
+
+    <!-- Type filter toggle (Statutory / Internal / All) -->
+    <div class="type-filter">
+      <button class="type-filter-btn active" data-type="all"       onclick="setTypeFilter('all')">All</button>
+      <button class="type-filter-btn"        data-type="statutory" onclick="setTypeFilter('statutory')">⚖️ Statutory only</button>
+      <button class="type-filter-btn"        data-type="internal"  onclick="setTypeFilter('internal')">🏢 Internal only</button>
     </div>
 
     <!-- Search bar — visible in both dept view and management view -->
@@ -2029,6 +2065,10 @@ function showDept(id) {
     `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
   document.getElementById('add-btn').style.display = 'inline-block';
   document.getElementById('add-btn').dataset.deptId = id;
+  // sync type-filter button visual state
+  document.querySelectorAll('.type-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === typeFilter);
+  });
 
   renderStats(items);
   renderTable(items, false);
@@ -2190,8 +2230,10 @@ function renderTable(items, showDeptCol) {
       <th style="width: 7%;">Function</th>`;
   }
 
-  // Apply search filter first
-  const filteredItems = items.filter(matchesSearch);
+  // Apply type filter + search filter
+  const filteredItems = items
+    .filter(c => typeFilter === 'all' ? true : c.type === typeFilter)
+    .filter(matchesSearch);
 
   // Update search meta
   const searchMetaEl = document.getElementById('search-meta');
@@ -2344,6 +2386,23 @@ function backToLanding() {
 // SEARCH FILTER
 // ============================================================
 let searchTerm = '';
+let typeFilter = 'all'; // 'all' | 'statutory' | 'internal'
+
+function setTypeFilter(t) {
+  typeFilter = t;
+  // update button styles
+  document.querySelectorAll('.type-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === t);
+  });
+  // re-render
+  if (managementMode) showManagement();
+  else {
+    const titleText = document.getElementById('dept-title').textContent;
+    const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
+    if (dept) showDept(dept.id);
+  }
+}
+
 function onSearchChange() {
   searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
   // re-render whichever view is active
