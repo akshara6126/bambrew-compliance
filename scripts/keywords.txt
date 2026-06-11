@@ -1,0 +1,57 @@
+# Bambrew compliance — keywords to track in Google News for regulatory updates
+# One keyword per line. Lines starting with # are ignored.
+
+# === Plastic Waste Management ===
+"Plastic Waste Management" rules India 2026
+"PWM Amendment" India 2026
+"EPR portal" CPCB India 2026
+"Single-Use Plastic" India ban 2026
+
+# === Compostable / biopolymer ===
+"compostable plastic" India certification CPCB
+"IS 17088" India compostable
+"biopolymer" India regulation 2026
+"PBAT" "PLA" India compliance
+
+# === FSSAI food packaging ===
+"FSSAI" packaging regulations India 2026
+"food contact" material India IS 9845
+"FSSAI license" food packaging
+
+# === Companies Act / ROC ===
+"Companies Act" amendment 2026 India
+"ROC filing" deadline India
+"Board meeting" Companies Act
+"AGM" Companies Act 2026
+
+# === Labour codes ===
+"Labour Codes" India 2026
+"PF" India new rules 2026
+"ESI" India compliance 2026
+"POSH Act" India
+
+# === Karnataka-specific ===
+"Karnataka Shops" Establishments Act
+"Karnataka professional tax" 2026
+"Karnataka labour" welfare fund
+
+# === GST / tax ===
+"GST" amendment India 2026
+"TDS" rules India 2026
+"Income Tax" Act 2025 India
+
+# === Customs / DGFT ===
+"DGFT" notification 2026
+"IEC" India update DGFT
+"customs duty" bioplastic India
+
+# === ESG / sustainability ===
+"BRSR" SEBI India 2026
+"CSR" Section 135 India 2026
+"sustainability" reporting India
+
+# === Export markets (EU + US) ===
+"EU PPWR" packaging 2026
+"BPI" certification compostable
+"TUV" "OK Compost" certification
+"REACH" plastic India export

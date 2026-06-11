@@ -1,0 +1,34 @@
+name: Refresh Bambrew Compliance News + Auto-Discovered Compliances
+
+on:
+  schedule:
+    # Mon + Thu at 09:00 IST = 03:30 UTC
+    - cron: '30 3 * * 1'
+    - cron: '30 3 * * 4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run the compliance news refresher
+        run: python3 scripts/refresh.py
+      - name: Commit and push if dashboard changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain index.html)" ]]; then
+            git add index.html
+            git commit -m "chore: auto-refresh compliance news ($(date -u +%Y-%m-%d))"
+            git push
+            echo "✓ Dashboard updated and pushed — Vercel will redeploy."
+          else
+            echo "No changes to commit."
+          fi

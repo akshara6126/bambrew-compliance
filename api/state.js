@@ -20,7 +20,12 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const data = await kv.get(SHARED_KEY);
-      return res.status(200).json(data || { statusMap: {}, userCompliances: [] });
+      return res.status(200).json(data || {
+        statusMap: {},
+        userCompliances: [],
+        priorityMap: {},
+        dismissedAutoIds: [],
+      });
     }
 
     if (req.method === 'POST') {
