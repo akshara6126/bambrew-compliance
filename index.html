@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bambrew · Compliance Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: 'DM Sans', -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1f2933;
+    background: #f4f6f8;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Fraunces', Georgia, "Times New Roman", serif;
+    letter-spacing: -0.01em;
+  }
+
+  /* === Top bar === */
+  .topbar {
+    background: #0f2a1e;
+    color: #fff;
+    padding: 16px 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .topbar h1 { margin: 0; font-size: 18px; font-weight: 700; }
+  .topbar .eyebrow {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px;
+    color: #6cbf91; font-weight: 700; margin-bottom: 2px;
+  }
+  .brand-logo { height: 36px; width: auto; display: block; margin-right: 14px; }
+  .topbar-left { display: flex; align-items: center; }
+  .management-btn {
+    background: #f2c94c; color: #0f2a1e; border: 0;
+    padding: 9px 16px; border-radius: 6px;
+    font-weight: 700; font-size: 12px; cursor: pointer;
+    font-family: inherit; letter-spacing: 0.3px;
+  }
+  .management-btn:hover { background: #e0b73a; }
+
+  .container { max-width: 1400px; margin: 26px auto; padding: 0 22px 60px; }
+
+  /* === Landing: department tiles === */
+  .landing-intro {
+    text-align: center;
+    margin: 18px 0 30px 0;
+  }
+  .landing-intro h2 {
+    font-size: 28px;
+    color: #0f2a1e;
+    margin: 0 0 6px 0;
+  }
+  .landing-intro p {
+    color: #57636d;
+    font-size: 13.5px;
+    margin: 0;
+  }
+
+  .dept-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  @media (max-width: 1024px) { .dept-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px)  { .dept-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .dept-tile {
+    background: #fff;
+    border-radius: 10px;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+    padding: 18px;
+  }
+  .dept-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  }
+  .dept-tile .dept-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+  .dept-tile .dept-name {
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f2a1e;
+    line-height: 1.2;
+  }
+  .dept-tile .dept-count {
+    font-size: 10px;
+    color: #57636d;
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+  }
+  .dept-status {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-track {
+    flex: 1;
+    height: 6px;
+    background: #e6e8eb;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .status-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  .status-fill.empty   { background: #e6e8eb; }
+  .status-fill.partial { background: #f5b800; }
+  .status-fill.done    { background: #4caf50; }
+  .status-label {
+    font-size: 9.5px;
+    color: #57636d;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .status-label.done { color: #2a8f5e; }
+  .status-check {
+    color: #2a8f5e;
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  /* === Department view (table) === */
+  .dept-view {
+    display: none;
+  }
+  .dept-view.active { display: block; }
+
+  .dept-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .back-btn {
+    background: transparent;
+    color: #2a8f5e;
+    border: 1.5px solid #2a8f5e;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .back-btn:hover { background: #2a8f5e; color: #fff; }
+  .dept-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dept-title-row h2 {
+    margin: 0;
+    font-size: 26px;
+    color: #0f2a1e;
+  }
+  .dept-meta {
+    color: #57636d;
+    font-size: 12.5px;
+    margin-top: 4px;
+  }
+
+  /* Stats strip */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .stat-card .label {
+    font-size: 11.5px; color: #57636d;
+    font-weight: 600; margin-bottom: 4px;
+  }
+  .stat-card .value {
+    font-family: 'Fraunces', serif;
+    font-size: 24px; color: #0f2a1e; font-weight: 700;
+  }
+  .stat-card.urgent .value  { color: #b03030; }
+  .stat-card.warning .value { color: #b88410; }
+  .stat-card.ok      .value { color: #155c3a; }
+
+  /* Table */
+  .comp-table {
+    width: 100%;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+  }
+  .comp-table thead th {
+    background: #0f2a1e;
+    color: #fff;
+    text-align: left;
+    padding: 11px 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .comp-table tbody td {
+    padding: 11px 10px;
+    border-bottom: 1px solid #eaedef;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .comp-table tbody tr:hover td { background: #f8fafa; }
+
+  .freq-pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .freq-monthly   { background: #fdecc8; color: #7a4d05; }
+  .freq-quarterly { background: #d8e6f5; color: #1c4170; }
+  .freq-annual    { background: #d6efe0; color: #155c3a; }
+  .freq-event     { background: #e6e8eb; color: #3f4a55; }
+
+  .status-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .status-overdue   { background: #fadcdc; color: #842121; }
+  .status-due-soon  { background: #fdecc8; color: #7a4d05; }
+  .status-ok        { background: #d6efe0; color: #155c3a; }
+
+  /* === RAG status dropdown === */
+  .rag-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: 0;
+    padding: 5px 22px 5px 12px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    outline: none;
+    background-position: right 6px center;
+    background-repeat: no-repeat;
+    background-size: 10px;
+    min-width: 110px;
+  }
+  .rag-select.rag-not-started {
+    background-color: #fadcdc; color: #842121;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%23842121'><path d='M0 0l5 6 5-6z'/></svg>");
+  }
+  .rag-select.rag-in-progress {
+    background-color: #fdecc8; color: #7a4d05;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%237a4d05'><path d='M0 0l5 6 5-6z'/></svg>");
+  }
+  .rag-select.rag-completed {
+    background-color: #d6efe0; color: #155c3a;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%23155c3a'><path d='M0 0l5 6 5-6z'/></svg>");
+  }
+
+  /* === Completed row styling (matches user's reference image) === */
+  .comp-table tbody tr.row-completed td {
+    background: #f4faf6;
+    color: #6b7680;
+  }
+  .comp-table tbody tr.row-completed td.completed-desc {
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: #6b7680;
+  }
+  .comp-table tbody tr.row-completed:hover td { background: #eaf3ed; }
+
+  /* === Compliance type pill (Statutory vs Internal) === */
+  .type-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 9px;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .type-statutory {
+    background: #fadcdc;
+    color: #842121;
+    border: 1px solid #f1b3b3;
+  }
+  .type-internal {
+    background: #e6e8eb;
+    color: #3f4a55;
+  }
+  /* Soft left-edge accent on statutory rows so legal ones visually stand out */
+  .comp-table tbody tr.statutory-row td:first-child {
+    box-shadow: inset 3px 0 0 #b03030;
+  }
+  /* Section divider between statutory block and internal block */
+  .comp-table tbody tr.type-divider td {
+    background: #f4f6f8;
+    color: #57636d;
+    padding: 6px 11px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border-top: 2px solid #d8dde2;
+  }
+
+  /* === Modal === */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15, 42, 30, 0.55);
+    z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    max-width: 420px;
+    width: 92%;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.25);
+  }
+  .modal h3 {
+    margin: 0 0 4px 0;
+    font-size: 20px;
+    color: #0f2a1e;
+  }
+  .modal p { color: #57636d; font-size: 13px; margin: 0 0 18px 0; }
+  .modal input[type="password"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #d8dde2;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fafbfa;
+    outline: none;
+  }
+  .modal input[type="password"]:focus { border-color: #2a8f5e; }
+  .modal-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .modal-actions button {
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: inherit;
+    border: 0;
+    letter-spacing: 0.3px;
+  }
+  .btn-primary { background: #2a8f5e; color: #fff; }
+  .btn-primary:hover { background: #1e6f48; }
+  .btn-secondary { background: transparent; color: #57636d; }
+  .modal-error {
+    color: #b03030;
+    font-size: 11.5px;
+    margin-top: 8px;
+    min-height: 16px;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <svg class="brand-logo" viewBox="0 0 180 56" xmlns="http://www.w3.org/2000/svg" aria-label="Bambrew">
+      <circle cx="30"  cy="28" r="22" fill="#5DAA70"/>
+      <circle cx="90"  cy="28" r="22" fill="#7BC9DA"/>
+      <circle cx="150" cy="28" r="22" fill="#F2C94C"/>
+    </svg>
+    <div>
+      <div class="eyebrow">Bambrew · Internal</div>
+      <h1>Compliance Management Dashboard</h1>
+    </div>
+  </div>
+  <button class="management-btn" onclick="openManagementView()">🔓 Management View</button>
+</div>
+
+<div class="container">
+
+  <!-- ============================== LANDING ============================== -->
+  <div id="landing">
+    <div class="landing-intro">
+      <h2>Departments</h2>
+      <p>Click a department to view its compliance tracker (password protected)</p>
+    </div>
+    <div class="dept-grid" id="dept-grid"></div>
+  </div>
+
+  <!-- ============================== DEPARTMENT VIEW ============================== -->
+  <div id="dept-view" class="dept-view">
+    <div class="dept-header">
+      <div class="dept-title-row">
+        <button class="back-btn" onclick="backToLanding()">← All departments</button>
+        <div>
+          <h2 id="dept-title">Department</h2>
+          <div class="dept-meta" id="dept-meta">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-strip" id="stats-strip"></div>
+
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th style="width: 4%;">S.No</th>
+          <th style="width: 22%;">Description</th>
+          <th style="width: 14%;">Statutory Reference</th>
+          <th style="width: 9%;">Frequency</th>
+          <th style="width: 9%;">Due date for</th>
+          <th style="width: 10%;">Due dates</th>
+          <th style="width: 9%;">Process Owner</th>
+          <th style="width: 9%;">Current POC</th>
+          <th style="width: 8%;">Function</th>
+          <th style="width: 6%;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="comp-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ============================== PASSWORD MODAL ============================== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">🔐 Enter password</h3>
+    <p id="modal-subtitle">This area is restricted. Enter the team password to continue.</p>
+    <input type="password" id="modal-input" autofocus onkeydown="if(event.key==='Enter') checkPassword();" placeholder="Password">
+    <div class="modal-error" id="modal-error"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="checkPassword()">Enter →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DEPARTMENTS — icon + sample passwords (placeholder, change later)
+// ============================================================
+const DEPARTMENTS = [
+  { id: 'founders',   name: "Founder's Office", icon: '🪴', password: 'founders' },
+  { id: 'legal',      name: 'Legal',            icon: '⚖️', password: 'legal' },
+  { id: 'hr',         name: 'HR',               icon: '👥', password: 'hr' },
+  { id: 'finance',    name: 'Finance',          icon: '💰', password: 'finance' },
+  { id: 'marketing',  name: 'Marketing',        icon: '📣', password: 'marketing' },
+  { id: 'operations', name: 'Operations',       icon: '⚙️', password: 'operations' },
+  { id: 'supply',     name: 'Supply Chain',     icon: '🚚', password: 'supply' },
+  { id: 'design',     name: 'Design',           icon: '🎨', password: 'design' },
+  { id: 'rnd',        name: 'R&D',              icon: '🧪', password: 'rnd' },
+  { id: 'sales',      name: 'Sales',            icon: '📊', password: 'sales' },
+];
+const MANAGEMENT_PASSWORD = 'admin';
+
+// ============================================================
+// COMPLIANCES — sample data (2–3 per department for the prototype)
+// ============================================================
+const COMPLIANCES = [
+  // ---------- Finance ----------
+  { dept: 'finance', type: 'statutory', sNo: 1,
+    description: 'Filing of monthly GST returns (GSTR-1, GSTR-3B)',
+    statutoryRef: 'GST Act, 2017',
+    frequency: 'Monthly', dueDateFor: 'Previous month',
+    dueDates: '11th & 20th of every month',
+    processOwner: 'Finance Team', currentPOC: 'CFO',
+    function: 'Tax Compliance' },
+  { dept: 'finance', type: 'statutory', sNo: 2,
+    description: 'TDS deduction & deposit',
+    statutoryRef: 'Income Tax Act, 1961 · Sec. 192–195',
+    frequency: 'Monthly', dueDateFor: 'Previous month',
+    dueDates: '7th of every month',
+    processOwner: 'Finance Team', currentPOC: 'Tax Accountant',
+    function: 'Tax Compliance' },
+  { dept: 'finance', type: 'statutory', sNo: 3,
+    description: 'Income Tax Return (ITR) filing',
+    statutoryRef: 'Income Tax Act, 1961 · Sec. 139',
+    frequency: 'Annual', dueDateFor: 'FY 2025-26',
+    dueDates: '30 Sep / 31 Oct (audit / non-audit)',
+    processOwner: 'CFO', currentPOC: 'External Auditor',
+    function: 'Tax Compliance' },
+
+  // ---------- HR ----------
+  { dept: 'hr', type: 'statutory', sNo: 1,
+    description: 'PF (Provident Fund) returns & deposit',
+    statutoryRef: 'EPF & MP Act, 1952',
+    frequency: 'Monthly', dueDateFor: 'Previous month',
+    dueDates: '15th of every month',
+    processOwner: 'HR Team', currentPOC: 'HR Manager',
+    function: 'Statutory Payroll' },
+  { dept: 'hr', type: 'statutory', sNo: 2,
+    description: 'ESI (Employees State Insurance) returns',
+    statutoryRef: 'ESI Act, 1948',
+    frequency: 'Monthly', dueDateFor: 'Previous month',
+    dueDates: '15th of every month',
+    processOwner: 'HR Team', currentPOC: 'HR Manager',
+    function: 'Statutory Payroll' },
+  { dept: 'hr', type: 'statutory', sNo: 3,
+    description: 'POSH committee annual report',
+    statutoryRef: 'POSH Act, 2013',
+    frequency: 'Annual', dueDateFor: 'Previous calendar year',
+    dueDates: '31 January',
+    processOwner: 'HR Head', currentPOC: 'ICC Chairperson',
+    function: 'Workplace Compliance' },
+
+  // ---------- Legal ----------
+  { dept: 'legal', type: 'statutory', sNo: 1,
+    description: 'Board meetings (minimum 4 per year, max 120 days gap)',
+    statutoryRef: 'Companies Act, 2013 · Sec. 173',
+    frequency: 'Quarterly', dueDateFor: 'Each quarter',
+    dueDates: 'Within 120 days of last meeting',
+    processOwner: 'Company Secretary', currentPOC: 'CS / Legal Counsel',
+    function: 'Corporate Secretarial' },
+  { dept: 'legal', type: 'statutory', sNo: 2,
+    description: 'Annual ROC filing (AOC-4, MGT-7)',
+    statutoryRef: 'Companies Act, 2013',
+    frequency: 'Annual', dueDateFor: 'FY 2025-26',
+    dueDates: '30 days from AGM / 60 days from AGM',
+    processOwner: 'Company Secretary', currentPOC: 'CS',
+    function: 'Corporate Secretarial' },
+  { dept: 'legal', type: 'statutory', sNo: 3,
+    description: 'Trademark renewal',
+    statutoryRef: 'Trade Marks Act, 1999',
+    frequency: 'Event-based', dueDateFor: 'Every 10 years',
+    dueDates: 'Per renewal cycle',
+    processOwner: 'Legal Team', currentPOC: 'IP Counsel',
+    function: 'IP Management' },
+
+  // ---------- Founder's Office ----------
+  { dept: 'founders', type: 'internal', sNo: 1,
+    description: 'Quarterly investor updates',
+    statutoryRef: 'Shareholders Agreement',
+    frequency: 'Quarterly', dueDateFor: 'Each quarter',
+    dueDates: 'Within 30 days of quarter close',
+    processOwner: 'Founder', currentPOC: 'Founder',
+    function: 'Investor Relations' },
+  { dept: 'founders', type: 'statutory', sNo: 2,
+    description: 'Annual general meeting (AGM)',
+    statutoryRef: 'Companies Act, 2013 · Sec. 96',
+    frequency: 'Annual', dueDateFor: 'FY 2025-26',
+    dueDates: 'Within 6 months of FY close',
+    processOwner: 'Founder + CS', currentPOC: 'CS',
+    function: 'Corporate Governance' },
+
+  // ---------- Marketing ----------
+  { dept: 'marketing', type: 'statutory', sNo: 1,
+    description: 'DPDP Act compliance — customer data consent flows',
+    statutoryRef: 'Digital Personal Data Protection Act, 2023',
+    frequency: 'Quarterly', dueDateFor: 'Each campaign',
+    dueDates: 'On every new campaign launch',
+    processOwner: 'Marketing Head', currentPOC: 'Marketing Manager',
+    function: 'Data Privacy' },
+  { dept: 'marketing', type: 'internal', sNo: 2,
+    description: 'Advertising Standards Council compliance review',
+    statutoryRef: 'ASCI Code',
+    frequency: 'Event-based', dueDateFor: 'Each ad',
+    dueDates: 'Before campaign go-live',
+    processOwner: 'Marketing Team', currentPOC: 'Brand Manager',
+    function: 'Brand Compliance' },
+
+  // ---------- Operations ----------
+  { dept: 'operations', type: 'statutory', sNo: 1,
+    description: 'Factory license renewal',
+    statutoryRef: 'Factories Act, 1948',
+    frequency: 'Annual', dueDateFor: 'Each calendar year',
+    dueDates: '31 December',
+    processOwner: 'Operations Head', currentPOC: 'Plant Manager',
+    function: 'Manufacturing License' },
+  { dept: 'operations', type: 'statutory', sNo: 2,
+    description: 'Pollution Control Board — Consent to Operate (CTO) renewal',
+    statutoryRef: 'Air & Water Acts',
+    frequency: 'Annual', dueDateFor: 'Each year',
+    dueDates: 'As per CTO validity',
+    processOwner: 'Operations Head', currentPOC: 'EHS Officer',
+    function: 'Environmental' },
+  { dept: 'operations', type: 'statutory', sNo: 3,
+    description: 'Fire safety audit',
+    statutoryRef: 'State Fire Safety Rules',
+    frequency: 'Annual', dueDateFor: 'Each year',
+    dueDates: 'Per state rules',
+    processOwner: 'Operations', currentPOC: 'Safety Officer',
+    function: 'Workplace Safety' },
+
+  // ---------- Supply Chain ----------
+  { dept: 'supply', type: 'internal', sNo: 1,
+    description: 'Vendor compliance audits (PF/ESI of contractors)',
+    statutoryRef: 'Contract Labour Act, 1970',
+    frequency: 'Quarterly', dueDateFor: 'Each quarter',
+    dueDates: 'Quarterly review',
+    processOwner: 'Procurement', currentPOC: 'Procurement Manager',
+    function: 'Vendor Compliance' },
+  { dept: 'supply', type: 'statutory', sNo: 2,
+    description: 'Import documentation & customs duty filings',
+    statutoryRef: 'Customs Act, 1962',
+    frequency: 'Event-based', dueDateFor: 'Each import',
+    dueDates: 'Per shipment',
+    processOwner: 'Supply Chain Head', currentPOC: 'CHA',
+    function: 'Trade Compliance' },
+
+  // ---------- Design ----------
+  { dept: 'design', type: 'internal', sNo: 1,
+    description: 'Design IP filings for new product designs',
+    statutoryRef: 'Designs Act, 2000',
+    frequency: 'Event-based', dueDateFor: 'Each new design',
+    dueDates: 'Before product launch',
+    processOwner: 'Design Head', currentPOC: 'IP Counsel',
+    function: 'IP Management' },
+
+  // ---------- R&D ----------
+  { dept: 'rnd', type: 'internal', sNo: 1,
+    description: 'Patent filing for novel biopolymer compositions',
+    statutoryRef: 'Patents Act, 1970',
+    frequency: 'Event-based', dueDateFor: 'Each invention',
+    dueDates: 'Within 12 months of provisional',
+    processOwner: 'R&D Head', currentPOC: 'IP Counsel',
+    function: 'IP Management' },
+  { dept: 'rnd', type: 'internal', sNo: 2,
+    description: 'DSIR recognition renewal',
+    statutoryRef: 'DSIR Guidelines',
+    frequency: 'Annual', dueDateFor: 'Each year',
+    dueDates: 'Per recognition cycle',
+    processOwner: 'R&D Head', currentPOC: 'R&D Lead',
+    function: 'R&D Recognition' },
+
+  // ---------- Sales ----------
+  { dept: 'sales', type: 'statutory', sNo: 1,
+    description: 'GST invoicing & e-way bills',
+    statutoryRef: 'GST Act, 2017',
+    frequency: 'Event-based', dueDateFor: 'Each sale > ₹50K',
+    dueDates: 'Per shipment',
+    processOwner: 'Sales Operations', currentPOC: 'Sales Coordinator',
+    function: 'Tax Compliance' },
+  { dept: 'sales', type: 'internal', sNo: 2,
+    description: 'Customer contract reviews & T&C compliance',
+    statutoryRef: 'Indian Contract Act, 1872',
+    frequency: 'Event-based', dueDateFor: 'Each major contract',
+    dueDates: 'Before signing',
+    processOwner: 'Sales Head', currentPOC: 'Legal',
+    function: 'Contract Compliance' },
+];
+
+// ============================================================
+// STATE & RENDERING
+// ============================================================
+let pendingDept = null;   // department the user is trying to access
+let unlockedDepts = new Set(JSON.parse(sessionStorage.getItem('comp-unlocked') || '[]'));
+let managementMode = false;
+
+// === RAG status tracking (per compliance) ===
+// Each compliance has one of: 'not-started' (red), 'in-progress' (amber), 'completed' (green).
+// Stored in localStorage so it persists. When deployed to Vercel+KV, swap to shared state.
+function compId(c) { return `${c.dept}-${c.sNo}`; }
+let statusMap = JSON.parse(localStorage.getItem('comp-status') || '{}');
+function getStatus(c) { return statusMap[compId(c)] || 'not-started'; }
+function setStatus(c, newStatus) {
+  statusMap[compId(c)] = newStatus;
+  localStorage.setItem('comp-status', JSON.stringify(statusMap));
+}
+function isCompleted(c) { return getStatus(c) === 'completed'; }
+function deptStats(id) {
+  const items = COMPLIANCES.filter(c => c.dept === id);
+  const total = items.length;
+  const done = items.filter(isCompleted).length;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  let state;
+  if (total === 0)             state = 'empty';
+  else if (done === total)     state = 'done';
+  else if (done === 0)         state = 'empty';
+  else                         state = 'partial';
+  return { total, done, pct, state };
+}
+
+function renderLanding() {
+  const grid = document.getElementById('dept-grid');
+  grid.innerHTML = DEPARTMENTS.map(d => {
+    const s = deptStats(d.id);
+    const labelText = s.total === 0
+      ? 'no items'
+      : s.state === 'done'
+        ? '✓ All done'
+        : `${s.done}/${s.total} done`;
+    return `
+      <div class="dept-tile" data-id="${d.id}" onclick="enterDept('${d.id}')">
+        <div class="dept-status">
+          <div class="status-track"><div class="status-fill ${s.state}" style="width:${Math.max(s.pct, 6)}%"></div></div>
+          <span class="status-label ${s.state === 'done' ? 'done' : ''}">${labelText}</span>
+        </div>
+        <div class="dept-icon">${d.icon}</div>
+        <div class="dept-name">${d.name}</div>
+        <div class="dept-count">${s.total} compliance${s.total === 1 ? '' : 's'}</div>
+      </div>`;
+  }).join('');
+}
+
+function enterDept(id) {
+  pendingDept = id;
+  if (unlockedDepts.has(id)) {
+    showDept(id);
+    return;
+  }
+  const dept = DEPARTMENTS.find(d => d.id === id);
+  document.getElementById('modal-title').textContent = '🔐 ' + dept.name;
+  document.getElementById('modal-subtitle').textContent = `Enter the ${dept.name} password to view its compliance tracker.`;
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('modal-input').focus(), 100);
+}
+
+function openManagementView() {
+  pendingDept = '__management__';
+  document.getElementById('modal-title').textContent = '🔓 Management View';
+  document.getElementById('modal-subtitle').textContent = 'Enter the management password to see all departments combined.';
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('modal-input').focus(), 100);
+}
+
+function checkPassword() {
+  const val = document.getElementById('modal-input').value;
+  const errEl = document.getElementById('modal-error');
+
+  if (pendingDept === '__management__') {
+    if (val === MANAGEMENT_PASSWORD) {
+      managementMode = true;
+      closeModal();
+      showManagement();
+    } else {
+      errEl.textContent = '✗ Wrong password.';
+    }
+    return;
+  }
+
+  const dept = DEPARTMENTS.find(d => d.id === pendingDept);
+  if (val === dept.password) {
+    unlockedDepts.add(pendingDept);
+    sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
+    closeModal();
+    showDept(pendingDept);
+  } else {
+    errEl.textContent = '✗ Wrong password.';
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function showDept(id) {
+  managementMode = false;
+  const dept = DEPARTMENTS.find(d => d.id === id);
+  const items = COMPLIANCES.filter(c => c.dept === id);
+
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('dept-view').classList.add('active');
+  document.getElementById('dept-title').textContent = `${dept.icon} ${dept.name}`;
+  document.getElementById('dept-meta').textContent =
+    `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
+
+  renderStats(items);
+  renderTable(items, false);
+}
+
+function showManagement() {
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('dept-view').classList.add('active');
+  document.getElementById('dept-title').textContent = '🔓 Management View · All Departments';
+  document.getElementById('dept-meta').textContent =
+    `${COMPLIANCES.length} compliance items across ${DEPARTMENTS.length} departments`;
+  renderStats(COMPLIANCES);
+  renderTable(COMPLIANCES, true);
+}
+
+function renderStats(items) {
+  const total = items.length;
+  const byFreq = (f) => items.filter(c => c.frequency === f).length;
+  document.getElementById('stats-strip').innerHTML = `
+    <div class="stat-card"><div class="label">Total items</div><div class="value">${total}</div></div>
+    <div class="stat-card urgent"><div class="label">Monthly</div><div class="value">${byFreq('Monthly')}</div></div>
+    <div class="stat-card warning"><div class="label">Quarterly</div><div class="value">${byFreq('Quarterly')}</div></div>
+    <div class="stat-card ok"><div class="label">Annual</div><div class="value">${byFreq('Annual')}</div></div>
+    <div class="stat-card"><div class="label">Event-based</div><div class="value">${byFreq('Event-based')}</div></div>
+  `;
+}
+
+function freqClass(f) {
+  return {
+    'Monthly': 'freq-monthly',
+    'Quarterly': 'freq-quarterly',
+    'Annual': 'freq-annual',
+    'Event-based': 'freq-event',
+  }[f] || 'freq-event';
+}
+
+function renderTable(items, showDeptCol) {
+  const thead = document.querySelector('.comp-table thead tr');
+  if (showDeptCol) {
+    thead.innerHTML = `
+      <th style="width: 4%;">S.No</th>
+      <th style="width: 10%;">Status</th>
+      <th style="width: 8%;">Type</th>
+      <th style="width: 7%;">Dept</th>
+      <th style="width: 15%;">Description</th>
+      <th style="width: 10%;">Statutory Reference</th>
+      <th style="width: 7%;">Frequency</th>
+      <th style="width: 7%;">Due date for</th>
+      <th style="width: 8%;">Due dates</th>
+      <th style="width: 8%;">Process Owner</th>
+      <th style="width: 7%;">Current POC</th>
+      <th style="width: 9%;">Function</th>`;
+  } else {
+    thead.innerHTML = `
+      <th style="width: 4%;">S.No</th>
+      <th style="width: 10%;">Status</th>
+      <th style="width: 8%;">Type</th>
+      <th style="width: 18%;">Description</th>
+      <th style="width: 11%;">Statutory Reference</th>
+      <th style="width: 7%;">Frequency</th>
+      <th style="width: 7%;">Due date for</th>
+      <th style="width: 8%;">Due dates</th>
+      <th style="width: 8%;">Process Owner</th>
+      <th style="width: 8%;">Current POC</th>
+      <th style="width: 11%;">Function</th>`;
+  }
+
+  // Sort: Statutory (legal) first, then Internal.
+  // Within each block: not-completed first, completed at the bottom.
+  // Preserve original order otherwise.
+  const sortedItems = [...items].map((c, originalIdx) => ({ c, originalIdx }))
+    .sort((a, b) => {
+      // 1) Statutory before Internal
+      const aStat = (a.c.type === 'statutory') ? 0 : 1;
+      const bStat = (b.c.type === 'statutory') ? 0 : 1;
+      if (aStat !== bStat) return aStat - bStat;
+      // 2) Within same type: not-completed before completed
+      const aDone = isCompleted(a.c) ? 1 : 0;
+      const bDone = isCompleted(b.c) ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      // 3) Stable by original order
+      return a.originalIdx - b.originalIdx;
+    });
+
+  const tbody = document.getElementById('comp-tbody');
+  if (sortedItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${showDeptCol ? 12 : 11}" style="text-align:center; padding:30px; color:#6b7680;">No compliance items configured yet for this department.</td></tr>`;
+    return;
+  }
+
+  const colspan = showDeptCol ? 12 : 11;
+  const rowsHtml = [];
+  let lastType = null;
+  sortedItems.forEach(({ c, originalIdx }) => {
+    // Insert a divider when transitioning from statutory → internal
+    if (lastType === 'statutory' && c.type === 'internal') {
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}">▽ Internal compliances (best practice / process)</td></tr>`);
+    } else if (lastType === null && c.type === 'statutory') {
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;">⚖️ Statutory compliances (legal — top priority)</td></tr>`);
+    } else if (lastType === null && c.type === 'internal') {
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;">▽ Internal compliances (best practice / process)</td></tr>`);
+    }
+    lastType = c.type;
+
+    const dept = DEPARTMENTS.find(d => d.id === c.dept);
+    const status = getStatus(c);
+    const isDone = status === 'completed';
+    const deptCell = showDeptCol
+      ? `<td><span style="font-size:11px; color:#0f2a1e; font-weight:700;">${dept.icon} ${dept.name}</span></td>`
+      : '';
+    const statusOptions = [
+      ['not-started', '🔴 Not Started'],
+      ['in-progress', '🟡 In Progress'],
+      ['completed',   '🟢 Completed'],
+    ].map(([v, lbl]) => `<option value="${v}" ${status === v ? 'selected' : ''}>${lbl}</option>`).join('');
+    const typePill = c.type === 'statutory'
+      ? '<span class="type-pill type-statutory">⚖️ Statutory</span>'
+      : '<span class="type-pill type-internal">🏢 Internal</span>';
+    const rowClasses = [
+      isDone ? 'row-completed' : '',
+      c.type === 'statutory' ? 'statutory-row' : '',
+    ].filter(Boolean).join(' ');
+
+    rowsHtml.push(`
+      <tr class="${rowClasses}">
+        <td>${originalIdx + 1}</td>
+        <td>
+          <select class="rag-select rag-${status}" onchange="onChangeStatus('${compId(c)}', this.value)">
+            ${statusOptions}
+          </select>
+        </td>
+        <td>${typePill}</td>
+        ${deptCell}
+        <td class="completed-desc"><b>${c.description}</b></td>
+        <td><span class="small">${c.statutoryRef}</span></td>
+        <td><span class="freq-pill ${freqClass(c.frequency)}">${c.frequency}</span></td>
+        <td>${c.dueDateFor}</td>
+        <td>${c.dueDates}</td>
+        <td>${c.processOwner}</td>
+        <td>${c.currentPOC}</td>
+        <td>${c.function}</td>
+      </tr>`);
+  });
+  tbody.innerHTML = rowsHtml.join('');
+}
+
+function onChangeStatus(id, newStatus) {
+  const c = COMPLIANCES.find(x => compId(x) === id);
+  if (!c) return;
+  setStatus(c, newStatus);
+  // re-render whatever's visible
+  if (managementMode) {
+    showManagement();
+  } else {
+    const deptViewActive = document.getElementById('dept-view').classList.contains('active');
+    if (deptViewActive) {
+      const titleText = document.getElementById('dept-title').textContent;
+      const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
+      if (dept) showDept(dept.id);
+    }
+  }
+  renderLanding();
+}
+
+function backToLanding() {
+  document.getElementById('landing').style.display = 'block';
+  document.getElementById('dept-view').classList.remove('active');
+  managementMode = false;
+}
+
+// Boot
+renderLanding();
+</script>
+
+</body>
+</html>
