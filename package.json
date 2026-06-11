@@ -1,0 +1,9 @@
+{
+  "name": "bambrew-compliance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bambrew internal compliance management dashboard — per-department + shared team state",
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  }
+}

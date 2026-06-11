@@ -699,15 +699,48 @@ let pendingDept = null;   // department the user is trying to access
 let unlockedDepts = new Set(JSON.parse(sessionStorage.getItem('comp-unlocked') || '[]'));
 let managementMode = false;
 
-// === RAG status tracking (per compliance) ===
+// === RAG status tracking (per compliance) — TEAM-SHARED via Vercel KV ===
 // Each compliance has one of: 'not-started' (red), 'in-progress' (amber), 'completed' (green).
-// Stored in localStorage so it persists. When deployed to Vercel+KV, swap to shared state.
+// On load: fetched from /api/state (shared across the team).
+// On change: debounced POST back to /api/state so every teammate's next reload sees it.
+// Falls back to localStorage if the API is offline (so the dashboard still works).
 function compId(c) { return `${c.dept}-${c.sNo}`; }
-let statusMap = JSON.parse(localStorage.getItem('comp-status') || '{}');
+let statusMap = {};
+
+async function loadStatusFromServer() {
+  try {
+    const r = await fetch('/api/state', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const s = await r.json();
+    statusMap = s.statusMap || {};
+    localStorage.setItem('comp-status', JSON.stringify(statusMap));
+  } catch (e) {
+    console.warn('Shared compliance state load failed, using localStorage fallback:', e);
+    statusMap = JSON.parse(localStorage.getItem('comp-status') || '{}');
+  }
+}
+let _saveTimer = null;
+function scheduleSyncToServer() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(syncStatusToServer, 800);
+}
+async function syncStatusToServer() {
+  try {
+    await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: { statusMap } }),
+    });
+  } catch (e) {
+    console.warn('Shared compliance state save failed (changes stayed in localStorage):', e);
+  }
+}
+
 function getStatus(c) { return statusMap[compId(c)] || 'not-started'; }
 function setStatus(c, newStatus) {
   statusMap[compId(c)] = newStatus;
   localStorage.setItem('comp-status', JSON.stringify(statusMap));
+  scheduleSyncToServer();
 }
 function isCompleted(c) { return getStatus(c) === 'completed'; }
 function deptStats(id) {
@@ -980,8 +1013,12 @@ function backToLanding() {
   managementMode = false;
 }
 
-// Boot
-renderLanding();
+// Boot — load shared status from Vercel KV, then render
+async function bootstrap() {
+  await loadStatusFromServer();
+  renderLanding();
+}
+bootstrap();
 </script>
 
 </body>
