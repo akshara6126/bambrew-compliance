@@ -715,6 +715,23 @@
     background-color: #f0f2f4; color: #8a929a;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%238a929a'><path d='M0 0l5 6 5-6z'/></svg>");
   }
+  /* Read-only priority badge (auto-assigned — no dropdown) */
+  .pri-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    min-width: 78px;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    background-image: none !important;
+    cursor: default;
+    user-select: none;
+  }
 
   /* === Completed row styling (matches user's reference image) === */
   .comp-table tbody tr.row-completed td {
@@ -2167,6 +2184,76 @@ const COMPLIANCES = [
 
 
 // ============================================================
+// AUTO-ASSIGNED PRIORITIES — researched from Indian statutory penalty thresholds
+// very-important = criminal prosecution / business shutdown / existential risk
+// important      = significant monetary penalty / regulatory action likely
+// medium         = administrative penalty / manageable
+// not-important  = no statutory penalty; internal best practice only
+// ============================================================
+const STATIC_PRIORITIES = {
+  // CS
+  'cs-1':'important','cs-2':'important','cs-3':'important','cs-4':'important',
+  'cs-5':'medium','cs-6':'medium','cs-7':'important','cs-8':'medium',
+  'cs-9':'important','cs-10':'medium','cs-11':'not-important','cs-12':'medium','cs-13':'not-important',
+  // Legal
+  'legal-1':'important','legal-2':'medium','legal-3':'very-important',
+  'legal-4':'medium','legal-5':'medium','legal-6':'not-important','legal-7':'not-important',
+  // HR
+  'hr-1':'very-important','hr-2':'very-important','hr-3':'important','hr-4':'not-important',
+  'hr-5':'important','hr-6':'important','hr-7':'important','hr-8':'very-important',
+  'hr-9':'important','hr-10':'medium','hr-11':'important','hr-12':'very-important',
+  'hr-13':'medium','hr-14':'not-important',
+  // Finance
+  'finance-1':'very-important','finance-2':'very-important','finance-3':'important',
+  'finance-4':'very-important','finance-5':'important','finance-6':'medium',
+  'finance-7':'important','finance-8':'important','finance-9':'important',
+  'finance-10':'very-important','finance-11':'very-important','finance-12':'important',
+  'finance-13':'important','finance-14':'medium','finance-15':'medium',
+  'finance-16':'not-important','finance-17':'not-important','finance-18':'important',
+  // Marketing
+  'marketing-1':'very-important','marketing-2':'very-important','marketing-3':'important',
+  'marketing-4':'important','marketing-5':'medium','marketing-6':'medium',
+  'marketing-7':'not-important','marketing-8':'not-important','marketing-9':'very-important',
+  'marketing-10':'very-important','marketing-11':'important','marketing-12':'important',
+  'marketing-13':'important','marketing-14':'very-important',
+  // Operations
+  'operations-1':'very-important','operations-2':'very-important','operations-3':'very-important',
+  'operations-4':'important','operations-5':'important','operations-6':'very-important',
+  'operations-7':'very-important','operations-8':'important','operations-9':'important',
+  'operations-10':'medium','operations-11':'medium','operations-12':'very-important',
+  'operations-13':'very-important','operations-14':'very-important','operations-15':'very-important',
+  'operations-16':'very-important','operations-17':'very-important','operations-18':'important',
+  'operations-19':'very-important','operations-20':'very-important','operations-21':'important',
+  'operations-22':'important','operations-23':'very-important','operations-24':'very-important',
+  'operations-25':'very-important','operations-26':'important','operations-27':'important',
+  'operations-28':'very-important','operations-29':'medium','operations-30':'very-important',
+  'operations-31':'very-important','operations-32':'very-important','operations-33':'very-important',
+  'operations-34':'very-important','operations-35':'very-important','operations-36':'very-important',
+  'operations-37':'important','operations-38':'important','operations-39':'important',
+  'operations-40':'important','operations-41':'medium','operations-42':'important',
+  'operations-43':'important','operations-44':'medium','operations-45':'medium',
+  'operations-46':'medium','operations-47':'important','operations-48':'important',
+  'operations-49':'important','operations-50':'medium','operations-51':'very-important',
+  'operations-52':'very-important','operations-53':'important','operations-54':'important',
+  'operations-55':'medium','operations-56':'important','operations-57':'medium',
+  // Supply Chain
+  'supply-1':'very-important','supply-2':'very-important','supply-3':'very-important',
+  'supply-4':'medium','supply-5':'important','supply-6':'not-important',
+  'supply-7':'not-important','supply-8':'not-important','supply-9':'very-important',
+  'supply-10':'medium','supply-11':'important','supply-12':'very-important',
+  'supply-13':'very-important','supply-14':'important','supply-15':'important',
+  'supply-16':'medium','supply-17':'important','supply-18':'very-important',
+  // Design
+  'design-1':'medium','design-2':'medium','design-3':'not-important','design-4':'important',
+  // R&D
+  'rnd-1':'medium','rnd-2':'important','rnd-3':'important','rnd-4':'medium',
+  'rnd-5':'not-important','rnd-6':'important',
+  // Sales
+  'sales-1':'very-important','sales-2':'very-important','sales-3':'important',
+  'sales-4':'medium','sales-5':'medium','sales-6':'medium','sales-7':'medium','sales-8':'medium',
+};
+
+// ============================================================
 // STATE & RENDERING
 // ============================================================
 let pendingDept = null;   // department the user is trying to access
@@ -2323,7 +2410,10 @@ function setStatus(c, newStatus) {
 
 // === Priority (4 levels) ===
 let priorityMap = JSON.parse(localStorage.getItem('comp-priority') || '{}');
-function getPriority(c) { return priorityMap[compId(c)] || 'medium'; }
+function getPriority(c) {
+  // Auto-assigned from research takes precedence; user-added items fall back to priorityMap
+  return STATIC_PRIORITIES[compId(c)] || priorityMap[compId(c)] || 'medium';
+}
 function setPriority(c, newPriority) {
   priorityMap[compId(c)] = newPriority;
   localStorage.setItem('comp-priority', JSON.stringify(priorityMap));
@@ -2332,6 +2422,9 @@ function setPriority(c, newPriority) {
 // Rank: lower number = higher priority (top of list)
 function priorityRank(p) {
   return ({ 'very-important': 0, 'important': 1, 'medium': 2, 'not-important': 3 })[p] ?? 2;
+}
+function priorityLabel(p) {
+  return ({ 'very-important': '🔥 V.High', 'important': '⚡ High', 'medium': '➖ Med', 'not-important': '💤 Low' })[p] || '➖ Med';
 }
 
 // === Remarks (free-text, syncs across team) ===
@@ -2799,6 +2892,7 @@ function renderTable(items, showDeptCol) {
     ].filter(Boolean).join(' ');
 
     const priority = getPriority(c);
+    const isAutoAssigned = !!STATIC_PRIORITIES[compId(c)];
     const priorityOptions = [
       ['very-important', '🔥 V.High'],
       ['important',      '⚡ High'],
@@ -2818,9 +2912,10 @@ function renderTable(items, showDeptCol) {
           </select>
         </td>
         <td>
-          <select class="pri-select pri-${priority}" onchange="onChangePriority('${compId(c)}', this.value)" title="Priority: ${priority.replace('-', ' ')}">
-            ${priorityOptions}
-          </select>
+          ${isAutoAssigned
+            ? `<span class="pri-badge pri-${priority}" title="Auto-assigned priority based on Indian statutory penalty thresholds">${priorityLabel(priority)}</span>`
+            : `<select class="pri-select pri-${priority}" onchange="onChangePriority('${compId(c)}', this.value)" title="Priority: ${priority.replace('-', ' ')}">${priorityOptions}</select>`
+          }
         </td>
         ${deptCell}
         <td class="completed-desc">
