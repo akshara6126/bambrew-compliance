@@ -490,6 +490,63 @@
   .stat-card.warning .value { color: #b88410; }
   .stat-card.ok      .value { color: #155c3a; }
 
+  /* Stat card breakdown (mandatory / non-mandatory + done / not done) */
+  .stat-breakdown {
+    margin-top: 9px;
+    border-top: 1px solid rgba(0,0,0,0.07);
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .stat-mand-block {}
+  .stat-mand-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+  .stat-mand-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #3f4a55;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+  .stat-mand-count {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0f2a1e;
+  }
+  .stat-done-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .stat-done-tag {
+    background: #d6efe0;
+    color: #155c3a;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-size: 9.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .stat-notdone-tag {
+    background: #fadcdc;
+    color: #842121;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-size: 9.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .stat-divider {
+    height: 1px;
+    background: rgba(0,0,0,0.05);
+    margin: 1px 0;
+  }
+
   /* Table */
   .comp-table {
     width: 100%;
@@ -2554,14 +2611,73 @@ function saveNewCompliance(deptId) {
 }
 
 function renderStats(items) {
-  const total = items.length;
-  const byFreq = (f) => items.filter(c => c.frequency === f).length;
+  function breakdownHtml(subset) {
+    const mand    = subset.filter(c => c.type === 'statutory');
+    const nonMand = subset.filter(c => c.type === 'internal');
+    const mDone    = mand.filter(c => getStatus(c) === 'completed').length;
+    const mNotDone = mand.length - mDone;
+    const nmDone    = nonMand.filter(c => getStatus(c) === 'completed').length;
+    const nmNotDone = nonMand.length - nmDone;
+    if (subset.length === 0) return '';
+    return `
+      <div class="stat-breakdown">
+        <div class="stat-mand-block">
+          <div class="stat-mand-row">
+            <span class="stat-mand-label">Mandatory</span>
+            <span class="stat-mand-count">${mand.length}</span>
+          </div>
+          <div class="stat-done-row">
+            <span class="stat-done-tag">✓ Done ${mDone}</span>
+            <span class="stat-notdone-tag">✗ Not done ${mNotDone}</span>
+          </div>
+        </div>
+        ${nonMand.length > 0 ? `
+        <div class="stat-divider"></div>
+        <div class="stat-mand-block">
+          <div class="stat-mand-row">
+            <span class="stat-mand-label">Non-mandatory</span>
+            <span class="stat-mand-count">${nonMand.length}</span>
+          </div>
+          <div class="stat-done-row">
+            <span class="stat-done-tag">✓ Done ${nmDone}</span>
+            <span class="stat-notdone-tag">✗ Not done ${nmNotDone}</span>
+          </div>
+        </div>` : ''}
+      </div>`;
+  }
+
+  const byFreq = (f) => items.filter(c => c.frequency === f);
+  const monthly    = byFreq('Monthly');
+  const quarterly  = byFreq('Quarterly');
+  const annual     = byFreq('Annual');
+  const eventBased = byFreq('Event-based');
+
   document.getElementById('stats-strip').innerHTML = `
-    <div class="stat-card"><div class="label">Total items</div><div class="value">${total}</div></div>
-    <div class="stat-card urgent"><div class="label">Monthly</div><div class="value">${byFreq('Monthly')}</div></div>
-    <div class="stat-card warning"><div class="label">Quarterly</div><div class="value">${byFreq('Quarterly')}</div></div>
-    <div class="stat-card ok"><div class="label">Annual</div><div class="value">${byFreq('Annual')}</div></div>
-    <div class="stat-card"><div class="label">Event-based</div><div class="value">${byFreq('Event-based')}</div></div>
+    <div class="stat-card">
+      <div class="label">Total items</div>
+      <div class="value">${items.length}</div>
+      ${breakdownHtml(items)}
+    </div>
+    <div class="stat-card urgent">
+      <div class="label">Monthly</div>
+      <div class="value">${monthly.length}</div>
+      ${breakdownHtml(monthly)}
+    </div>
+    <div class="stat-card warning">
+      <div class="label">Quarterly</div>
+      <div class="value">${quarterly.length}</div>
+      ${breakdownHtml(quarterly)}
+    </div>
+    <div class="stat-card ok">
+      <div class="label">Annual</div>
+      <div class="value">${annual.length}</div>
+      ${breakdownHtml(annual)}
+    </div>
+    <div class="stat-card">
+      <div class="label">Event-based</div>
+      <div class="value">${eventBased.length}</div>
+      ${breakdownHtml(eventBased)}
+    </div>
   `;
 }
 
