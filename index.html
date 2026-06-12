@@ -608,7 +608,7 @@
   .status-due-soon  { background: #fdecc8; color: #7a4d05; }
   .status-ok        { background: #d6efe0; color: #155c3a; }
 
-  /* === RAG status dropdown — compact === */
+  /* === RAG status dropdown: compact === */
   .rag-select {
     appearance: none;
     -webkit-appearance: none;
@@ -641,7 +641,7 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%23155c3a'><path d='M0 0l5 6 5-6z'/></svg>");
   }
 
-  /* === Priority dropdown — compact === */
+  /* === Priority dropdown: compact === */
   .pri-select {
     appearance: none; -webkit-appearance: none; -moz-appearance: none;
     border: 0; padding: 4px 18px 4px 8px; border-radius: 10px;
@@ -664,7 +664,7 @@
     background-color: #e6e8eb; color: #3f4a55;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%233f4a55'><path d='M0 0l5 6 5-6z'/></svg>");
   }
-  /* === Remarks input — inline editable === */
+  /* === Remarks input: inline editable === */
   .remarks-input {
     width: 100%;
     padding: 6px 8px;
@@ -724,7 +724,7 @@
     background-color: #f0f2f4; color: #8a929a;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%238a929a'><path d='M0 0l5 6 5-6z'/></svg>");
   }
-  /* Read-only priority badge (auto-assigned — no dropdown) */
+  /* Read-only priority badge (auto-assigned: no dropdown) */
   .pri-badge {
     display: inline-block;
     padding: 4px 8px;
@@ -983,7 +983,7 @@
         <button class="back-btn" onclick="backToLanding()">← All departments</button>
         <div>
           <h2 id="dept-title">Department</h2>
-          <div class="dept-meta" id="dept-meta">—</div>
+          <div class="dept-meta" id="dept-meta"></div>
         </div>
       </div>
       <button class="add-btn" id="add-btn" onclick="openAddCompliance()">+ Add Compliance</button>
@@ -996,7 +996,7 @@
       <button class="type-filter-btn"        data-type="internal"  onclick="setTypeFilter('internal')"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Internal only</button>
     </div>
 
-    <!-- Search bar — visible in both dept view and management view -->
+    <!-- Search bar: visible in both dept view and management view -->
     <div class="search-bar">
       <span class="search-icon"><i data-lucide="search" style="width:15px;height:15px;vertical-align:middle;stroke:#57636d;"></i></span>
       <input id="search-input" type="text" placeholder="Search compliances (e.g. GST, CPCB, EPR, FSSAI, plastic, IS 17088, audit...)" oninput="onSearchChange()">
@@ -1045,7 +1045,7 @@
 
 <script>
 // ============================================================
-// DEPARTMENTS — icon + sample passwords (placeholder, change later)
+// DEPARTMENTS: icon + sample passwords (placeholder, change later)
 // ============================================================
 const DEPARTMENTS = [
   { id: 'cs',         name: 'Company Secretary', icon: 'scroll',        password: 'cs' },
@@ -1062,12 +1062,12 @@ const DEPARTMENTS = [
 const MANAGEMENT_PASSWORD = 'admin';
 
 // ============================================================
-// COMPLIANCES — sample data (2–3 per department for the prototype)
+// COMPLIANCES: sample data (2–3 per department for the prototype)
 // ============================================================
 const COMPLIANCES = [
   // ---------- cs ----------
   { dept: 'cs', type: 'statutory', sNo: 1,
-    description: 'Board meetings — min 4/year, max 120 days gap',
+    description: 'Board meetings: min 4/year, max 120 days gap',
     statutoryRef: 'Companies Act, 2013 · Sec. 173',
     frequency: 'Quarterly', dueDateFor: 'Each quarter',
     dueDates: 'Within 120 days of last meeting',
@@ -1102,21 +1102,21 @@ const COMPLIANCES = [
     processOwner: 'CS', currentPOC: 'CS + Directors',
     function: 'Director Compliance' },
   { dept: 'cs', type: 'statutory', sNo: 6,
-    description: 'ADT-1 — Statutory Auditor appointment intimation',
+    description: 'ADT-1: Statutory Auditor appointment intimation',
     statutoryRef: 'Companies Act, 2013 · Sec. 139',
     frequency: 'Annual', dueDateFor: 'After AGM',
     dueDates: 'Within 15 days of AGM',
     processOwner: 'CS', currentPOC: 'CS',
     function: 'ROC Filings' },
   { dept: 'cs', type: 'statutory', sNo: 7,
-    description: 'Minutes book maintenance — board & general meetings',
+    description: 'Minutes book maintenance: board & general meetings',
     statutoryRef: 'Companies Act, 2013 · Sec. 118',
     frequency: 'Event-based', dueDateFor: 'Each meeting',
     dueDates: 'Within 30 days of meeting',
     processOwner: 'CS', currentPOC: 'CS',
     function: 'Statutory Records' },
   { dept: 'cs', type: 'statutory', sNo: 8,
-    description: 'DIR-12 — Change in directors / KMP',
+    description: 'DIR-12: Change in directors / KMP',
     statutoryRef: 'Companies Act, 2013',
     frequency: 'Event-based', dueDateFor: 'Each change',
     dueDates: 'Within 30 days of change',
@@ -1195,21 +1195,21 @@ const COMPLIANCES = [
     processOwner: 'HR', currentPOC: 'HR Manager',
     function: 'Statutory Payroll' },
   { dept: 'hr', type: 'statutory', sNo: 3,
-    description: 'Karnataka Professional Tax (PT) — gross > ₹25K/mo',
+    description: 'Karnataka Professional Tax (PT): gross > ₹25K/mo',
     statutoryRef: 'Karnataka Tax on Professions Act',
     frequency: 'Monthly', dueDateFor: 'Previous month',
     dueDates: '20th of every month',
     processOwner: 'HR + Finance', currentPOC: 'HR Manager',
     function: 'State Tax' },
   { dept: 'hr', type: 'statutory', sNo: 4,
-    description: 'Karnataka Labour Welfare Fund (LWF) — 10+ employees',
+    description: 'Karnataka Labour Welfare Fund (LWF): 10+ employees',
     statutoryRef: 'Karnataka Labour Welfare Fund Act',
     frequency: 'Annual', dueDateFor: 'Each calendar year',
     dueDates: '31 December',
     processOwner: 'HR', currentPOC: 'HR Manager',
     function: 'Labour Welfare' },
   { dept: 'hr', type: 'statutory', sNo: 5,
-    description: 'POSH committee — Annual Report to District Officer',
+    description: 'POSH committee: Annual Report to District Officer',
     statutoryRef: 'POSH Act, 2013 · Rule 14',
     frequency: 'Annual', dueDateFor: 'Previous calendar year',
     dueDates: '31 January',
@@ -1223,7 +1223,7 @@ const COMPLIANCES = [
     processOwner: 'HR', currentPOC: 'HR Manager',
     function: 'Establishment License' },
   { dept: 'hr', type: 'statutory', sNo: 7,
-    description: 'Gratuity — payable after 1 yr for FTC (new Labour Codes 2026)',
+    description: 'Gratuity: payable after 1 yr for FTC (new Labour Codes 2026)',
     statutoryRef: 'Code on Social Security, 2020',
     frequency: 'Event-based', dueDateFor: 'Each exit',
     dueDates: 'Within 30 days of cessation',
@@ -1237,21 +1237,21 @@ const COMPLIANCES = [
     processOwner: 'HR Head', currentPOC: 'HR Manager',
     function: 'Wage Compliance' },
   { dept: 'hr', type: 'statutory', sNo: 9,
-    description: 'Bonus Act compliance — wage threshold ₹21K, payment by Nov',
+    description: 'Bonus Act compliance: wage threshold ₹21K, payment by Nov',
     statutoryRef: 'Payment of Bonus Act, 1965',
     frequency: 'Annual', dueDateFor: 'Previous FY',
     dueDates: 'Within 8 months of FY close',
     processOwner: 'HR + Finance', currentPOC: 'HR Manager',
     function: 'Statutory Payroll' },
   { dept: 'hr', type: 'statutory', sNo: 10,
-    description: '50% Basic of CTC — new Labour Codes',
+    description: '50% Basic of CTC: new Labour Codes',
     statutoryRef: 'Code on Wages, 2019',
     frequency: 'Annual', dueDateFor: 'Each pay structure',
     dueDates: 'Continuous compliance',
     processOwner: 'HR Head', currentPOC: 'HR Manager',
     function: 'Wage Structure' },
   { dept: 'hr', type: 'statutory', sNo: 11,
-    description: 'Maternity Benefit — 26 weeks paid leave',
+    description: 'Maternity Benefit: 26 weeks paid leave',
     statutoryRef: 'Maternity Benefit Act, 1961 (Amended)',
     frequency: 'Event-based', dueDateFor: 'Each case',
     dueDates: 'As per applicability',
@@ -1386,21 +1386,21 @@ const COMPLIANCES = [
     function: 'Internal Controls' },
   // ---------- marketing ----------
   { dept: 'marketing', type: 'statutory', sNo: 1,
-    description: 'DPDP Act — Consent for personal data collection',
+    description: 'DPDP Act: Consent for personal data collection',
     statutoryRef: 'Digital Personal Data Protection Act, 2023',
     frequency: 'Event-based', dueDateFor: 'Each data collection',
     dueDates: 'Before collection',
     processOwner: 'Marketing Head', currentPOC: 'Marketing Manager',
     function: 'Data Privacy' },
   { dept: 'marketing', type: 'statutory', sNo: 2,
-    description: 'DPDP Act — Data Fiduciary obligations (notice, security, breach reporting)',
+    description: 'DPDP Act: Data Fiduciary obligations (notice, security, breach reporting)',
     statutoryRef: 'DPDP Act, 2023',
     frequency: 'Annual', dueDateFor: 'Continuous',
     dueDates: 'Audit annually',
     processOwner: 'Marketing + Legal', currentPOC: 'DPO',
     function: 'Data Privacy' },
   { dept: 'marketing', type: 'statutory', sNo: 3,
-    description: 'Influencer disclosure — #Ad / verbal disclosure',
+    description: 'Influencer disclosure: #Ad / verbal disclosure',
     statutoryRef: 'ASCI Influencer Guidelines 2026 · Consumer Protection Act',
     frequency: 'Event-based', dueDateFor: 'Each campaign',
     dueDates: 'Before campaign go-live',
@@ -1450,14 +1450,14 @@ const COMPLIANCES = [
     processOwner: 'Operations Head', currentPOC: 'Plant Manager',
     function: 'Manufacturing License' },
   { dept: 'operations', type: 'statutory', sNo: 2,
-    description: 'Consent to Operate (CTO) — State Pollution Control Board',
+    description: 'Consent to Operate (CTO): State Pollution Control Board',
     statutoryRef: 'Air Act, 1981 · Water Act, 1974',
     frequency: 'Annual', dueDateFor: 'Per CTO validity',
     dueDates: 'As per CTO expiry',
     processOwner: 'Operations Head', currentPOC: 'EHS Officer',
     function: 'Environmental' },
   { dept: 'operations', type: 'statutory', sNo: 3,
-    description: 'Consent to Establish (CTE) — pre-expansion',
+    description: 'Consent to Establish (CTE): pre-expansion',
     statutoryRef: 'Air Act, 1981 · Water Act, 1974',
     frequency: 'Event-based', dueDateFor: 'Each expansion',
     dueDates: 'Before commissioning',
@@ -1471,21 +1471,21 @@ const COMPLIANCES = [
     processOwner: 'Operations', currentPOC: 'Safety Officer',
     function: 'Workplace Safety' },
   { dept: 'operations', type: 'statutory', sNo: 5,
-    description: 'Hazardous Waste Management — annual return Form 4',
+    description: 'Hazardous Waste Management: annual return Form 4',
     statutoryRef: 'Hazardous & Other Wastes Rules, 2016',
     frequency: 'Annual', dueDateFor: 'Previous FY',
     dueDates: '30 June',
     processOwner: 'Operations', currentPOC: 'EHS Officer',
     function: 'Environmental' },
   { dept: 'operations', type: 'statutory', sNo: 6,
-    description: 'Plastic Waste Management — EPR target (30% recycled, rising to 60% by 2028-29)',
+    description: 'Plastic Waste Management: EPR target (30% recycled, rising to 60% by 2028-29)',
     statutoryRef: 'PWM Amendment Rules, 2026',
     frequency: 'Annual', dueDateFor: 'Each FY',
     dueDates: '30 June (EPR portal)',
     processOwner: 'Operations + Legal', currentPOC: 'EPR Lead',
     function: 'EPR Compliance' },
   { dept: 'operations', type: 'statutory', sNo: 7,
-    description: 'Plastic Waste Management — QR code on all packaging',
+    description: 'Plastic Waste Management: QR code on all packaging',
     statutoryRef: 'PWM Amendment Rules, 2026',
     frequency: 'Event-based', dueDateFor: 'Each SKU',
     dueDates: 'Before product launch',
@@ -1521,14 +1521,14 @@ const COMPLIANCES = [
     function: 'Asset Management' },
   // ---------- supply ----------
   { dept: 'supply', type: 'statutory', sNo: 1,
-    description: 'Customs documentation — Bill of Entry / Shipping Bill',
+    description: 'Customs documentation: Bill of Entry / Shipping Bill',
     statutoryRef: 'Customs Act, 1962',
     frequency: 'Event-based', dueDateFor: 'Each shipment',
     dueDates: 'Per shipment',
     processOwner: 'Supply Chain Head', currentPOC: 'CHA',
     function: 'Trade Compliance' },
   { dept: 'supply', type: 'statutory', sNo: 2,
-    description: 'E-way Bill — mandatory if value > ₹50K',
+    description: 'E-way Bill: mandatory if value > ₹50K',
     statutoryRef: 'CGST Rules · Sec. 138',
     frequency: 'Event-based', dueDateFor: 'Each consignment',
     dueDates: 'Before goods movement',
@@ -1607,7 +1607,7 @@ const COMPLIANCES = [
     function: 'Product Compliance' },
   // ---------- rnd ----------
   { dept: 'rnd', type: 'statutory', sNo: 1,
-    description: 'Patent filings — provisional / complete',
+    description: 'Patent filings: provisional / complete',
     statutoryRef: 'Patents Act, 1970',
     frequency: 'Event-based', dueDateFor: 'Each invention',
     dueDates: 'Within 12 months of provisional',
@@ -1621,14 +1621,14 @@ const COMPLIANCES = [
     processOwner: 'R&D Head', currentPOC: 'R&D Lead',
     function: 'R&D Recognition' },
   { dept: 'rnd', type: 'statutory', sNo: 3,
-    description: 'Section 35(2AB) — Form 3CL submission to DSIR',
+    description: 'Section 35(2AB): Form 3CL submission to DSIR',
     statutoryRef: 'Income Tax Act · Sec. 35(2AB)',
     frequency: 'Annual', dueDateFor: 'Previous FY',
     dueDates: '31 October',
     processOwner: 'R&D + Finance', currentPOC: 'CFO',
     function: 'R&D Tax Deduction' },
   { dept: 'rnd', type: 'statutory', sNo: 4,
-    description: 'Form 3CK — In-house R&D agreement with DSIR',
+    description: 'Form 3CK: In-house R&D agreement with DSIR',
     statutoryRef: 'Income Tax Rules',
     frequency: 'Event-based', dueDateFor: 'Per recognition',
     dueDates: 'On registration / renewal',
@@ -1678,7 +1678,7 @@ const COMPLIANCES = [
     processOwner: 'Sales Head', currentPOC: 'Legal',
     function: 'Contract Compliance' },
   { dept: 'sales', type: 'internal', sNo: 5,
-    description: 'Sales credit policy adherence — collection cycles',
+    description: 'Sales credit policy adherence: collection cycles',
     statutoryRef: 'Internal credit policy',
     frequency: 'Monthly', dueDateFor: 'Each customer',
     dueDates: 'Monthly aging review',
@@ -1686,7 +1686,7 @@ const COMPLIANCES = [
     function: 'Credit Control' },
   // ---------- operations (sustainability + Bambrew-specific) ----------
   { dept: 'operations', type: 'statutory', sNo: 12,
-    description: 'CPCB Compostable Plastic Certificate (IS/ISO 17088:2021) — per product/grade',
+    description: 'CPCB Compostable Plastic Certificate (IS/ISO 17088:2021): per product/grade',
     statutoryRef: 'CPCB SOP for Compostable Plastic Manufacturers · IS 17088:2021',
     frequency: 'Event-based', dueDateFor: 'Each product/grade or change in raw material/process',
     dueDates: 'Before commercial sale; fresh application on any change',
@@ -1700,7 +1700,7 @@ const COMPLIANCES = [
     processOwner: 'Operations', currentPOC: 'EHS Officer',
     function: 'Manufacturing License' },
   { dept: 'operations', type: 'statutory', sNo: 14,
-    description: 'Compostability test reports — seed germination + heavy metal + 180-day biodegradation',
+    description: 'Compostability test reports: seed germination + heavy metal + 180-day biodegradation',
     statutoryRef: 'IS 17088:2021 · CPCB SOP · CIPET / NABL labs',
     frequency: 'Event-based', dueDateFor: 'Each product/grade',
     dueDates: 'Per CPCB certification cycle',
@@ -1749,14 +1749,14 @@ const COMPLIANCES = [
     processOwner: 'Operations + Design', currentPOC: 'Brand Manager',
     function: 'Product Labeling' },
   { dept: 'operations', type: 'statutory', sNo: 21,
-    description: 'Single-Use Plastic Ban — exemption verification for IS 17088 compostable products',
+    description: 'Single-Use Plastic Ban: exemption verification for IS 17088 compostable products',
     statutoryRef: 'PWM Amendment Rules 2021 · 19 banned SUP items',
     frequency: 'Annual', dueDateFor: 'Each FY',
     dueDates: 'Continuous compliance',
     processOwner: 'Operations + Legal', currentPOC: 'EHS Officer',
     function: 'Single-Use Plastic Ban' },
   { dept: 'operations', type: 'statutory', sNo: 22,
-    description: 'Hazardous Waste — Form 4 annual return',
+    description: 'Hazardous Waste: Form 4 annual return',
     statutoryRef: 'Hazardous & Other Wastes (Management) Rules, 2016',
     frequency: 'Annual', dueDateFor: 'Previous FY',
     dueDates: '30 June',
@@ -1793,7 +1793,7 @@ const COMPLIANCES = [
     function: 'EPR Compliance' },
   // ---------- marketing (sustainability + Bambrew-specific) ----------
   { dept: 'marketing', type: 'statutory', sNo: 9,
-    description: 'FSSAI food-contact migration testing — 60 mg/kg or 10 mg/dm² limit',
+    description: 'FSSAI food-contact migration testing: 60 mg/kg or 10 mg/dm² limit',
     statutoryRef: 'Food Safety & Standards (Packaging) Regulations 2018 · Amendment 2026 · IS 9845',
     frequency: 'Event-based', dueDateFor: 'Each food-contact product',
     dueDates: 'Before launch; per NABL-approved lab',
@@ -1807,7 +1807,7 @@ const COMPLIANCES = [
     processOwner: 'Marketing + Legal', currentPOC: 'QA Lead',
     function: 'Food Contact Compliance' },
   { dept: 'marketing', type: 'statutory', sNo: 11,
-    description: 'Sustainability claims substantiation — no greenwashing on packaging or ads',
+    description: 'Sustainability claims substantiation: no greenwashing on packaging or ads',
     statutoryRef: 'ASCI Code · CCPA Guidelines · DPDP Act',
     frequency: 'Event-based', dueDateFor: 'Each claim',
     dueDates: 'Pre-launch review of all green claims',
@@ -1822,7 +1822,7 @@ const COMPLIANCES = [
     processOwner: 'CFO + CS', currentPOC: 'CFO',
     function: 'CSR Compliance' },
   { dept: 'finance', type: 'statutory', sNo: 17,
-    description: 'CSR spend — 2% of avg net profits of preceding 3 FYs (if applicable)',
+    description: 'CSR spend: 2% of avg net profits of preceding 3 FYs (if applicable)',
     statutoryRef: 'Companies Act, 2013 · Sec. 135(5)',
     frequency: 'Annual', dueDateFor: 'Current FY',
     dueDates: 'Within FY · unspent → CSR Unspent Account',
@@ -1830,14 +1830,14 @@ const COMPLIANCES = [
     function: 'CSR Compliance' },
   // ---------- cs (sustainability + Bambrew-specific) ----------
   { dept: 'cs', type: 'statutory', sNo: 11,
-    description: 'Udyam Registration (MSME) renewal — annual update',
+    description: 'Udyam Registration (MSME) renewal: annual update',
     statutoryRef: 'MSMED Act, 2006 · Udyam Portal',
     frequency: 'Annual', dueDateFor: 'Each FY',
     dueDates: 'Annual on Udyam portal',
     processOwner: 'CS + Finance', currentPOC: 'CS',
     function: 'MSME Registration' },
   { dept: 'cs', type: 'statutory', sNo: 12,
-    description: 'INC-22A (ACTIVE) — registered office address verification',
+    description: 'INC-22A (ACTIVE): registered office address verification',
     statutoryRef: 'Companies Act, 2013 · Companies (Inc.) Rules',
     frequency: 'Event-based', dueDateFor: 'On any office change',
     dueDates: 'Within 30 days of address change',
@@ -1852,28 +1852,28 @@ const COMPLIANCES = [
     function: 'ESG Reporting' },
   // ---------- operations (food-contact: FSSAI + BIS) ----------
   { dept: 'operations', type: 'statutory', sNo: 23,
-    description: 'FSSAI License (FBO — Food Business Operator) for food packaging manufacturing',
+    description: 'FSSAI License (FBO: Food Business Operator) for food packaging manufacturing',
     statutoryRef: 'Food Safety & Standards Act, 2006 · FSS (Licensing) Regulations 2011',
     frequency: 'Annual', dueDateFor: 'Each license cycle',
     dueDates: 'Per license renewal date (1, 3 or 5 yr validity)',
     processOwner: 'Operations + Legal', currentPOC: 'QA Manager',
     function: 'FSSAI License' },
   { dept: 'operations', type: 'statutory', sNo: 24,
-    description: 'IS 9845 — Overall Migration test (≤ 60 mg/kg or 10 mg/dm²)',
+    description: 'IS 9845: Overall Migration test (≤ 60 mg/kg or 10 mg/dm²)',
     statutoryRef: 'BIS · IS 9845 · FSS (Packaging) Regulations 2018 + 2026 Amendment',
     frequency: 'Event-based', dueDateFor: 'Each food-contact product/grade',
     dueDates: 'Per product launch; NABL-accredited lab',
     processOwner: 'Operations + R&D', currentPOC: 'QA Lead',
     function: 'Food Contact Migration' },
   { dept: 'operations', type: 'statutory', sNo: 25,
-    description: 'IS 9835 — Specific Migration Limit (SML) testing for individual substances',
+    description: 'IS 9835: Specific Migration Limit (SML) testing for individual substances',
     statutoryRef: 'BIS · IS 9835 · FSS (Packaging) Regulations',
     frequency: 'Event-based', dueDateFor: 'Each food-contact product',
     dueDates: 'Per product launch; NABL-accredited lab',
     processOwner: 'Operations + R&D', currentPOC: 'QA Lead',
     function: 'Food Contact Migration' },
   { dept: 'operations', type: 'statutory', sNo: 26,
-    description: 'IS 9833 — Pigments & colorants list compliance for food-contact plastics',
+    description: 'IS 9833: Pigments & colorants list compliance for food-contact plastics',
     statutoryRef: 'BIS · IS 9833 · FSS (Packaging) Regulations',
     frequency: 'Event-based', dueDateFor: 'Each colored food-contact SKU',
     dueDates: 'Per pigment/colorant approval before launch',
@@ -1887,14 +1887,14 @@ const COMPLIANCES = [
     processOwner: 'Operations', currentPOC: 'QA Manager',
     function: 'Food Contact Compliance' },
   { dept: 'operations', type: 'statutory', sNo: 28,
-    description: 'Heavy metal limits per FSS (Contaminants, Toxins & Residues) Regulation 2011 — lead, cadmium, arsenic, mercury',
+    description: 'Heavy metal limits per FSS (Contaminants, Toxins & Residues) Regulation 2011: lead, cadmium, arsenic, mercury',
     statutoryRef: 'FSS (Contaminants, Toxins & Residues) Regulation, 2011',
     frequency: 'Event-based', dueDateFor: 'Each food-contact product',
     dueDates: 'Per product launch; NABL lab test',
     processOwner: 'Operations + R&D', currentPOC: 'QA Lead',
     function: 'Food Contact Compliance' },
   { dept: 'operations', type: 'statutory', sNo: 29,
-    description: 'IS 14534:2016 — Plastic recycling guidelines (identification + marking)',
+    description: 'IS 14534:2016: Plastic recycling guidelines (identification + marking)',
     statutoryRef: 'BIS · IS 14534:2016',
     frequency: 'Event-based', dueDateFor: 'Each recycled-content product',
     dueDates: 'Per product launch',
@@ -1916,7 +1916,7 @@ const COMPLIANCES = [
     function: 'FSSAI Inspections' },
   // ---------- marketing (food-contact: FSSAI + BIS) ----------
   { dept: 'marketing', type: 'statutory', sNo: 12,
-    description: 'Restriction on printing inks for food-contact packaging — no lead/cadmium migration',
+    description: 'Restriction on printing inks for food-contact packaging: no lead/cadmium migration',
     statutoryRef: 'FSS (Packaging) Regulations 2018 + 2026 Amendment',
     frequency: 'Event-based', dueDateFor: 'Each printed pack',
     dueDates: 'Pre-launch ink approval per SKU',
@@ -1931,28 +1931,28 @@ const COMPLIANCES = [
     processOwner: 'Operations + R&D', currentPOC: 'QC Manager',
     function: 'Film Thickness Compliance' },
   { dept: 'operations', type: 'statutory', sNo: 33,
-    description: 'Multi-Layer Plastic (MLP) — explicit EPR coverage (composite films)',
+    description: 'Multi-Layer Plastic (MLP): explicit EPR coverage (composite films)',
     statutoryRef: 'PWM Amendment Rules 2026 · MoEFCC Notification 31 Mar 2026',
     frequency: 'Annual', dueDateFor: 'Each MLP product line',
     dueDates: '30 June (EPR portal declaration)',
     processOwner: 'Operations + Legal', currentPOC: 'EPR Lead',
     function: 'EPR Compliance (MLP)' },
   { dept: 'operations', type: 'statutory', sNo: 34,
-    description: 'EPR recycling target — 70% by FY 2026-27 → 100% by FY 2028-29',
+    description: 'EPR recycling target: 70% by FY 2026-27 → 100% by FY 2028-29',
     statutoryRef: 'PWM Amendment Rules 2022 · 2026',
     frequency: 'Annual', dueDateFor: 'Each FY',
     dueDates: '30 June (EPR portal)',
     processOwner: 'Operations + Legal', currentPOC: 'EPR Lead',
     function: 'EPR Targets' },
   { dept: 'operations', type: 'statutory', sNo: 35,
-    description: 'Effluent Treatment Plant (ETP) operational clearance — biopolymer manufacturing',
+    description: 'Effluent Treatment Plant (ETP) operational clearance: biopolymer manufacturing',
     statutoryRef: 'Water (Prevention & Control of Pollution) Act, 1974',
     frequency: 'Annual', dueDateFor: 'Each year',
     dueDates: 'Per SPCB consent renewal',
     processOwner: 'Operations', currentPOC: 'EHS Officer',
     function: 'Environmental' },
   { dept: 'operations', type: 'statutory', sNo: 36,
-    description: 'Air Pollution Control Equipment compliance — biopolymer extrusion lines',
+    description: 'Air Pollution Control Equipment compliance: biopolymer extrusion lines',
     statutoryRef: 'Air (Prevention & Control of Pollution) Act, 1981',
     frequency: 'Quarterly', dueDateFor: 'Continuous',
     dueDates: 'Per SPCB monitoring schedule',
@@ -1967,35 +1967,35 @@ const COMPLIANCES = [
     processOwner: 'Supply Chain + Legal', currentPOC: 'EPR Lead + CHA',
     function: 'EPR Compliance (Imports)' },
   { dept: 'supply', type: 'statutory', sNo: 14,
-    description: 'BPI Certification (ASTM D6400 / D6868) — for US / Canada exports',
+    description: 'BPI Certification (ASTM D6400 / D6868): for US / Canada exports',
     statutoryRef: 'BPI · ASTM D6400 / D6868 · institutional contract requirement',
     frequency: 'Annual', dueDateFor: 'Each export product line',
     dueDates: 'Per certification cycle (typically 1-yr)',
     processOwner: 'Operations + Supply Chain', currentPOC: 'Certification Manager',
     function: 'Export Compliance (US)' },
   { dept: 'supply', type: 'statutory', sNo: 15,
-    description: 'TÜV Austria OK Compost INDUSTRIAL (EN 13432) — for EU exports',
+    description: 'TÜV Austria OK Compost INDUSTRIAL (EN 13432): for EU exports',
     statutoryRef: 'EN 13432 · TÜV Austria · EU PPWR 2026',
     frequency: 'Annual', dueDateFor: 'Each export product line',
     dueDates: 'Per certification cycle',
     processOwner: 'Operations + Supply Chain', currentPOC: 'Certification Manager',
     function: 'Export Compliance (EU)' },
   { dept: 'supply', type: 'statutory', sNo: 16,
-    description: 'TÜV Austria OK Compost HOME — for premium EU / US home-compost claims',
+    description: 'TÜV Austria OK Compost HOME: for premium EU / US home-compost claims',
     statutoryRef: 'TÜV Austria OK Compost HOME standard',
     frequency: 'Annual', dueDateFor: 'Each product claiming home-compostability',
     dueDates: 'Per certification cycle',
     processOwner: 'Operations + Marketing', currentPOC: 'Certification Manager',
     function: 'Compostability Certification' },
   { dept: 'supply', type: 'statutory', sNo: 17,
-    description: 'EU PPWR (Packaging & Packaging Waste Regulation) 2026 — PFAS-free, multi-layer restrictions',
+    description: 'EU PPWR (Packaging & Packaging Waste Regulation) 2026: PFAS-free, multi-layer restrictions',
     statutoryRef: 'EU PPWR 2026 (effective 2026)',
     frequency: 'Annual', dueDateFor: 'Each EU-bound product',
     dueDates: 'Continuous compliance for EU exports',
     processOwner: 'Operations + Legal', currentPOC: 'Export Compliance Lead',
     function: 'Export Compliance (EU)' },
   { dept: 'supply', type: 'statutory', sNo: 18,
-    description: 'REACH compliance — chemicals/substances in plastic products sold in EU',
+    description: 'REACH compliance: chemicals/substances in plastic products sold in EU',
     statutoryRef: 'Regulation (EC) No 1907/2006 (REACH)',
     frequency: 'Annual', dueDateFor: 'Each EU-bound product',
     dueDates: 'Per substance registration & SVHC list updates',
@@ -2018,14 +2018,14 @@ const COMPLIANCES = [
     processOwner: 'Operations + Admin', currentPOC: 'Safety Officer',
     function: 'Building Safety' },
   { dept: 'operations', type: 'statutory', sNo: 38,
-    description: 'Karnataka Fire Services Act, Sec. 13 — building fire safety precautions',
+    description: 'Karnataka Fire Services Act, Sec. 13: building fire safety precautions',
     statutoryRef: 'Karnataka Fire Services Act, 1964 · Sec. 13',
     frequency: 'Annual', dueDateFor: 'Each year',
     dueDates: 'Per state notification + inspection',
     processOwner: 'Operations', currentPOC: 'Safety Officer',
     function: 'Fire Safety' },
   { dept: 'operations', type: 'statutory', sNo: 39,
-    description: 'Fire extinguishers — quarterly inspection + annual refilling',
+    description: 'Fire extinguishers: quarterly inspection + annual refilling',
     statutoryRef: 'NBC · IS 2190 · Karnataka Fire Rules',
     frequency: 'Quarterly', dueDateFor: 'Each quarter',
     dueDates: 'Quarterly inspection; annual refill',
@@ -2039,21 +2039,21 @@ const COMPLIANCES = [
     processOwner: 'Operations', currentPOC: 'Safety Officer',
     function: 'Fire Safety' },
   { dept: 'operations', type: 'statutory', sNo: 41,
-    description: 'Emergency exits — marking, illumination, accessibility audit',
+    description: 'Emergency exits: marking, illumination, accessibility audit',
     statutoryRef: 'Factories Act, 1948 · NBC',
     frequency: 'Annual', dueDateFor: 'Each year',
     dueDates: 'Annual safety audit',
     processOwner: 'Operations', currentPOC: 'Safety Officer',
     function: 'Building Safety' },
   { dept: 'operations', type: 'statutory', sNo: 42,
-    description: 'Electrical safety certification — annual electrical inspection',
+    description: 'Electrical safety certification: annual electrical inspection',
     statutoryRef: 'Electricity Act, 2003 · CEA Safety Regulations',
     frequency: 'Annual', dueDateFor: 'Each year',
     dueDates: 'Annual electrical inspector audit',
     processOwner: 'Operations + Engineering', currentPOC: 'Plant Manager',
     function: 'Electrical Safety' },
   { dept: 'operations', type: 'statutory', sNo: 43,
-    description: 'On-site Emergency Response Plan (ERP) — preparation & mock drills',
+    description: 'On-site Emergency Response Plan (ERP): preparation & mock drills',
     statutoryRef: 'Factories Act, 1948 · Sec. 41B (Major Accident Hazards)',
     frequency: 'Annual', dueDateFor: 'Each year',
     dueDates: 'Annual ERP review + 2 mock drills/year',
@@ -2074,14 +2074,14 @@ const COMPLIANCES = [
     processOwner: 'HR + Operations', currentPOC: 'Safety Officer + Medical',
     function: 'Workplace Safety' },
   { dept: 'operations', type: 'statutory', sNo: 46,
-    description: 'Safety training records — induction + annual refresher for all workers',
+    description: 'Safety training records: induction + annual refresher for all workers',
     statutoryRef: 'Factories Act, 1948 · OSH&WC Code, 2020',
     frequency: 'Annual', dueDateFor: 'Each worker',
     dueDates: 'Induction on joining; annual refresher',
     processOwner: 'HR + Operations', currentPOC: 'Safety Officer',
     function: 'Workplace Safety' },
   { dept: 'operations', type: 'statutory', sNo: 47,
-    description: 'IBR — Indian Boiler Regulations — boiler inspection & certification (> 22.5L steam)',
+    description: 'IBR: Indian Boiler Regulations: boiler inspection & certification (> 22.5L steam)',
     statutoryRef: 'Indian Boilers Act, 1923 · IBR · Central Boiler Board',
     frequency: 'Annual', dueDateFor: 'Each boiler',
     dueDates: 'Annual inspection by IBR-approved inspector',
@@ -2095,7 +2095,7 @@ const COMPLIANCES = [
     processOwner: 'Operations + Maintenance', currentPOC: 'Plant Manager',
     function: 'Pressure Equipment' },
   { dept: 'operations', type: 'statutory', sNo: 49,
-    description: 'DG (Diesel Generator) Set — CPCB emission norms + noise limit compliance',
+    description: 'DG (Diesel Generator) Set: CPCB emission norms + noise limit compliance',
     statutoryRef: 'CPCB DG Set Norms · Air Act, 1981 · Noise Pollution Rules',
     frequency: 'Annual', dueDateFor: 'Each DG set',
     dueDates: 'Annual emission test; one-time acoustic enclosure cert',
@@ -2109,21 +2109,21 @@ const COMPLIANCES = [
     processOwner: 'Operations + Maintenance', currentPOC: 'Plant Manager',
     function: 'Pressure Equipment' },
   { dept: 'operations', type: 'statutory', sNo: 51,
-    description: 'KSPCB Consent for Establishment (CFE) — Karnataka State Pollution Control Board',
+    description: 'KSPCB Consent for Establishment (CFE): Karnataka State Pollution Control Board',
     statutoryRef: 'Air Act, 1981 · Water Act, 1974 · KSPCB',
     frequency: 'Event-based', dueDateFor: 'Pre-construction / pre-expansion',
     dueDates: 'Before commissioning new units',
     processOwner: 'Operations + Legal', currentPOC: 'EHS Officer',
     function: 'Environmental (KSPCB)' },
   { dept: 'operations', type: 'statutory', sNo: 52,
-    description: 'KSPCB Consent for Operation (CFO) — Karnataka, renewal cycle',
+    description: 'KSPCB Consent for Operation (CFO): Karnataka, renewal cycle',
     statutoryRef: 'Air Act, 1981 · Water Act, 1974 · KSPCB',
     frequency: 'Annual', dueDateFor: 'Per CFO validity',
     dueDates: 'Per CFO expiry date',
     processOwner: 'Operations + Legal', currentPOC: 'EHS Officer',
     function: 'Environmental (KSPCB)' },
   { dept: 'operations', type: 'statutory', sNo: 53,
-    description: 'IS 17899T:2022 — Biodegradable plastic certification (ambient conditions, separate from IS 17088)',
+    description: 'IS 17899T:2022: Biodegradable plastic certification (ambient conditions, separate from IS 17088)',
     statutoryRef: 'BIS IS 17899T:2022 · CPCB SOP for Biodegradable Plastics',
     frequency: 'Event-based', dueDateFor: 'Each biodegradable product/grade',
     dueDates: 'Per CPCB certification cycle',
@@ -2174,7 +2174,7 @@ const COMPLIANCES = [
     processOwner: 'QA + Sales', currentPOC: 'QA Manager',
     function: 'Customer Documentation' },
   { dept: 'operations', type: 'statutory', sNo: 57,
-    description: 'Traceability documents — raw material → finished product per batch',
+    description: 'Traceability documents: raw material → finished product per batch',
     statutoryRef: 'Customer audit + FSSAI traceability',
     frequency: 'Event-based', dueDateFor: 'Each batch',
     dueDates: 'Continuous batch records',
@@ -2197,7 +2197,7 @@ const COMPLIANCES = [
     function: 'Customer Safety Docs' },
   // ---------- legal (framework gaps: fire/safety + customer + equipment) ----------
   { dept: 'legal', type: 'internal', sNo: 7,
-    description: 'NDA execution tracking — log per customer / vendor engagement',
+    description: 'NDA execution tracking: log per customer / vendor engagement',
     statutoryRef: 'Indian Contract Act, 1872 · Internal IP policy',
     frequency: 'Event-based', dueDateFor: 'Each new engagement',
     dueDates: 'Before any info sharing; tracked in NDA log',
@@ -2207,7 +2207,7 @@ const COMPLIANCES = [
 
 
 // ============================================================
-// AUTO-ASSIGNED PRIORITIES — researched from Indian statutory penalty thresholds
+// AUTO-ASSIGNED PRIORITIES: researched from Indian statutory penalty thresholds
 // very-important = criminal prosecution / business shutdown / existential risk
 // important      = significant monetary penalty / regulatory action likely
 // medium         = administrative penalty / manageable
@@ -2284,7 +2284,7 @@ let currentDeptId = null; // which dept is currently shown (used by filter/searc
 let unlockedDepts = new Set(JSON.parse(sessionStorage.getItem('comp-unlocked') || '[]'));
 let managementMode = false;
 
-// === RAG status tracking (per compliance) — TEAM-SHARED via Vercel KV ===
+// === RAG status tracking (per compliance): TEAM-SHARED via Vercel KV ===
 // Each compliance has one of: 'not-started' (red), 'in-progress' (amber), 'completed' (green).
 // On load: fetched from /api/state (shared across the team).
 // On change: debounced POST back to /api/state so every teammate's next reload sees it.
@@ -2723,13 +2723,13 @@ function saveNewCompliance(deptId) {
     dept: deptId,
     type: document.getElementById('ac-type').value,
     description: desc,
-    statutoryRef: document.getElementById('ac-statutoryRef').value.trim() || '—',
+    statutoryRef: document.getElementById('ac-statutoryRef').value.trim() || '',
     frequency: document.getElementById('ac-frequency').value,
-    dueDateFor: document.getElementById('ac-dueDateFor').value.trim() || '—',
-    dueDates: document.getElementById('ac-dueDates').value.trim() || '—',
-    processOwner: document.getElementById('ac-processOwner').value.trim() || '—',
-    currentPOC: document.getElementById('ac-currentPOC').value.trim() || '—',
-    function: document.getElementById('ac-function').value.trim() || '—',
+    dueDateFor: document.getElementById('ac-dueDateFor').value.trim() || '',
+    dueDates: document.getElementById('ac-dueDates').value.trim() || '',
+    processOwner: document.getElementById('ac-processOwner').value.trim() || '',
+    currentPOC: document.getElementById('ac-currentPOC').value.trim() || '',
+    function: document.getElementById('ac-function').value.trim() || '',
   };
   addUserCompliance(data);
   closeModal();
@@ -2902,7 +2902,7 @@ function renderTable(items, showDeptCol) {
     if (lastType === 'statutory' && c.type === 'internal') {
       rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}"><span class="divider-label divider-internal">Internal</span> Best practice &amp; process</td></tr>`);
     } else if (lastType === null && c.type === 'statutory') {
-      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;"><span class="divider-label divider-statutory">Statutory</span> Legal &mdash; top priority</td></tr>`);
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;"><span class="divider-label divider-statutory">Statutory</span> Legal: top priority</td></tr>`);
     } else if (lastType === null && c.type === 'internal') {
       rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;"><span class="divider-label divider-internal">Internal</span> Best practice &amp; process</td></tr>`);
     }
@@ -2961,7 +2961,7 @@ function renderTable(items, showDeptCol) {
         </td>
         <td><span class="small">${c.statutoryRef}</span></td>
         <td><span class="freq-pill ${freqClass(c.frequency)}">${c.frequency}</span></td>
-        <td><span class="small"><b>${c.dueDates}</b><br><span style="color:#8a929a;">${c.dueDateFor !== '—' ? c.dueDateFor : ''}</span></span></td>
+        <td><span class="small"><b>${c.dueDates}</b><br><span style="color:#8a929a;">${c.dueDateFor !== '' ? c.dueDateFor : ''}</span></span></td>
         <td>
           <input class="owner-input" type="text"
                  placeholder="${(c.processOwner || '').replace(/"/g, '&quot;')}"
@@ -3101,10 +3101,10 @@ function renderWhatsNewDrawer() {
             <span class="compliance-flag">🎯 Likely compliance</span>
           </div>
           <h4 class="nc-title">${c.description}</h4>
-          <div class="nc-sig"><b>Dept:</b> ${dept ? dept.name : c.dept} · <b>Type:</b> ${c.type} · <b>Source:</b> ${c.statutoryRef || '—'}</div>
+          <div class="nc-sig"><b>Dept:</b> ${dept ? dept.name : c.dept} · <b>Type:</b> ${c.type} · <b>Source:</b> ${c.statutoryRef || ''}</div>
           <div class="nc-source">
             ${c.url ? `<a href="${c.url}" target="_blank">↗ Open source</a> · ` : ''}
-            <button onclick="promoteAutoCompliance('${c.id}')" style="background:#2a8f5e;color:#fff;border:0;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;margin-right:5px;font-family:inherit;">✓ Keep — add to ${dept ? dept.name : c.dept}</button>
+            <button onclick="promoteAutoCompliance('${c.id}')" style="background:#2a8f5e;color:#fff;border:0;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;margin-right:5px;font-family:inherit;">✓ Keep: add to ${dept ? dept.name : c.dept}</button>
             <button onclick="dismissAutoCompliance('${c.id}')" style="background:transparent;color:#842121;border:1px solid #fadcdc;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;font-family:inherit;">✗ Dismiss</button>
           </div>
         </div>`;
@@ -3120,7 +3120,7 @@ function renderWhatsNewDrawer() {
           <h4 class="nc-title">${n.title}</h4>
           ${n.significance ? `<div class="nc-sig">${n.significance}</div>` : ''}
           <div class="nc-source">
-            Source: ${n.url ? `<a href="${n.url}" target="_blank">${n.source || 'Open'}</a>` : (n.source || '—')}
+            Source: ${n.url ? `<a href="${n.url}" target="_blank">${n.source || 'Open'}</a>` : (n.source || '')}
           </div>
         </div>`;
     });
@@ -3207,7 +3207,7 @@ function handleRoute() {
 
 window.addEventListener('popstate', handleRoute);
 
-// Boot — load shared status from Vercel KV, then route to current URL
+// Boot: load shared status from Vercel KV, then route to current URL
 async function bootstrap() {
   await loadStatusFromServer();
   history.replaceState({ view: 'initial' }, '', window.location.pathname);
