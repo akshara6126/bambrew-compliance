@@ -2464,9 +2464,60 @@ function deleteUserCompliance(id) {
   renderLanding();
 }
 
-function getStatus(c) { return statusMap[compId(c)] || 'not-started'; }
+// Returns the period key for a given frequency (India FY: Apr–Mar)
+function getCurrentPeriod(frequency) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-indexed
+  if (frequency === 'Monthly')     return `${y}-${String(m + 1).padStart(2, '0')}`;
+  if (frequency === 'Quarterly')   return `${y}-Q${Math.floor(m / 3) + 1}`;
+  if (frequency === 'Half-yearly') {
+    const fy = m >= 3 ? y + 1 : y;
+    return `FY${fy}-H${(m >= 3 && m <= 8) ? 1 : 2}`;
+  }
+  if (frequency === 'Annual') {
+    return `FY${m >= 3 ? y + 1 : y}`;
+  }
+  return null; // Event-based: no period, stays done permanently
+}
+
+// True if the stored period matches today's period
+function isCurrentPeriod(period) {
+  if (!period) return true;
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (/^\d{4}-\d{2}$/.test(period)) {
+    const [py, pm] = period.split('-').map(Number);
+    return y === py && m + 1 === pm;
+  }
+  if (/^\d{4}-Q\d$/.test(period)) {
+    return y === parseInt(period) && Math.floor(m / 3) + 1 === parseInt(period.split('Q')[1]);
+  }
+  if (/^FY\d{4}-H\d$/.test(period)) {
+    const fy = parseInt(period.slice(2, 6)), h = parseInt(period.slice(-1));
+    return (m >= 3 ? y + 1 : y) === fy && ((m >= 3 && m <= 8) ? 1 : 2) === h;
+  }
+  if (/^FY\d{4}$/.test(period)) {
+    return (m >= 3 ? y + 1 : y) === parseInt(period.slice(2));
+  }
+  return true;
+}
+
+function getStatus(c) {
+  const raw = statusMap[compId(c)] || 'not-started';
+  if (!raw.startsWith('completed:')) return raw;
+  // Auto-reset if the period has rolled over
+  return isCurrentPeriod(raw.slice('completed:'.length)) ? 'completed' : 'not-started';
+}
+
 function setStatus(c, newStatus) {
-  statusMap[compId(c)] = newStatus;
+  if (newStatus === 'completed') {
+    const period = getCurrentPeriod(c.frequency);
+    statusMap[compId(c)] = period ? `completed:${period}` : 'completed';
+  } else {
+    statusMap[compId(c)] = newStatus;
+  }
   localStorage.setItem('comp-status', JSON.stringify(statusMap));
   scheduleSyncToServer();
 }
