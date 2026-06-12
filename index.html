@@ -979,10 +979,16 @@
 <aside class="drawer" id="whats-new-drawer">
   <div class="drawer-header">
     <div>
-      <h3>📰 What's New</h3>
+      <h3>What's New</h3>
       <div class="drawer-sub" id="drawer-sub">Regulatory updates &amp; signals</div>
     </div>
-    <button class="drawer-close" onclick="closeWhatsNew()" aria-label="Close">×</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="news-refresh-btn" onclick="manualRefreshNews()" title="Refresh now"
+        style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <i data-lucide="refresh-cw" style="width:11px;height:11px;"></i> Refresh
+      </button>
+      <button class="drawer-close" onclick="closeWhatsNew()" aria-label="Close">×</button>
+    </div>
   </div>
   <div class="drawer-content" id="news-body">Loading…</div>
 </aside>
@@ -2392,10 +2398,28 @@ async function syncStatusToServer() {
 }
 
 // __NEWS_START__
-const LAST_REFRESH = '';
-const NEWS = [];
-const AUTO_DISCOVERED_COMPLIANCES = [];
+let LAST_REFRESH = '';
+let NEWS = [];
+let AUTO_DISCOVERED_COMPLIANCES = [];
 // __NEWS_END__
+
+async function loadNewsFromServer() {
+  try {
+    const r = await fetch('/api/news', { cache: 'no-store' });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (Array.isArray(data.news)) NEWS = data.news;
+    if (Array.isArray(data.compliances)) AUTO_DISCOVERED_COMPLIANCES = data.compliances;
+    if (data.refreshedAt) {
+      LAST_REFRESH = new Date(data.refreshedAt).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
+      });
+    }
+    renderWhatsNewBadge();
+  } catch (e) {
+    console.warn('News load failed:', e);
+  }
+}
 
 // === Add / delete user-added compliances ===
 function addUserCompliance(data) {
@@ -3317,6 +3341,19 @@ function highlight(text) {
 // ============================================================
 // WHAT'S NEW DRAWER
 // ============================================================
+async function manualRefreshNews() {
+  const btn = document.getElementById('news-refresh-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" style="width:11px;height:11px;"></i> Fetching...'; lucide.createIcons(); }
+  try {
+    await fetch('/api/cron/refresh-news', { method: 'GET' });
+    await loadNewsFromServer();
+    renderWhatsNewDrawer();
+  } catch (e) {
+    console.warn('Manual refresh failed:', e);
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" style="width:11px;height:11px;"></i> Refresh'; lucide.createIcons(); }
+}
+
 function openWhatsNew() {
   renderWhatsNewDrawer();
   document.getElementById('whats-new-drawer').classList.add('open');
@@ -3457,6 +3494,7 @@ window.addEventListener('popstate', handleRoute);
 // Boot: load shared status from Vercel KV, then route to current URL
 async function bootstrap() {
   await loadStatusFromServer();
+  loadNewsFromServer(); // non-blocking — badge updates when ready
   history.replaceState({ view: 'initial' }, '', window.location.pathname);
   handleRoute();
   lucide.createIcons(); // activate static HTML icons (topbar, type filter)
