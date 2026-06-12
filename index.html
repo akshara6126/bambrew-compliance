@@ -3396,18 +3396,18 @@ function highlight(text) {
 // WHAT'S NEW DRAWER
 // ============================================================
 function showNewsToast(msg) {
+  const body = document.getElementById('news-body');
+  if (!body) return;
   const existing = document.getElementById('news-toast');
   if (existing) existing.remove();
   const toast = document.createElement('div');
   toast.id = 'news-toast';
   toast.textContent = msg;
   toast.style.cssText = `
-    position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-    background:#0f2a1e;color:#fff;font-size:12px;font-weight:600;
-    padding:8px 18px;border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.18);
-    opacity:0;transition:opacity .25s;z-index:9999;pointer-events:none;white-space:nowrap;
+    text-align:center;font-size:12px;font-weight:600;color:#6b7680;
+    padding:10px 0 4px;opacity:0;transition:opacity .25s;
   `;
-  document.body.appendChild(toast);
+  body.prepend(toast);
   requestAnimationFrame(() => { toast.style.opacity = '1'; });
   setTimeout(() => {
     toast.style.opacity = '0';
