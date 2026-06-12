@@ -3419,11 +3419,10 @@ async function manualRefreshNews() {
   const btn = document.getElementById('news-refresh-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" style="width:11px;height:11px;"></i> Fetching...'; lucide.createIcons(); }
   try {
-    const res = await fetch('/api/cron/refresh-news', { method: 'GET' });
-    const data = await res.json();
+    await fetch('/api/cron/refresh-news', { method: 'GET' });
     await loadNewsFromServer();
     renderWhatsNewDrawer();
-    if ((data.fresh_news || 0) === 0 && (data.fresh_compliances || 0) === 0) {
+    if (NEWS.length === 0 && autoCompliances().length === 0) {
       showNewsToast('Nothing new!');
     }
   } catch (e) {
