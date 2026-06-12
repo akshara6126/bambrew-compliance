@@ -2444,7 +2444,8 @@ function showDept(id) {
     btn.classList.toggle('active', btn.dataset.type === typeFilter);
   });
 
-  renderStats(items);
+  const typeFiltered = typeFilter === 'all' ? items : items.filter(c => c.type === typeFilter);
+  renderStats(typeFiltered);
   renderTable(items, false);
 }
 
@@ -2455,8 +2456,10 @@ function showManagement() {
   document.getElementById('dept-meta').textContent =
     `${allCompliances().length} compliance items across ${DEPARTMENTS.length} departments`;
   document.getElementById('add-btn').style.display = 'none';
-  renderStats(allCompliances());
-  renderTable(allCompliances(), true);
+  const all = allCompliances();
+  const typeFiltered = typeFilter === 'all' ? all : all.filter(c => c.type === typeFilter);
+  renderStats(typeFiltered);
+  renderTable(all, true);
 }
 
 // === Add Compliance modal ===
