@@ -2594,8 +2594,7 @@ function showDept(id) {
 
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dept-view').classList.add('active');
-  const titleEl = document.getElementById('dept-title');
-  titleEl.innerHTML = `<i data-lucide="${dept.icon}" style="width:22px;height:22px;vertical-align:middle;margin-right:8px;color:#2a8f5e;stroke-width:1.5;"></i>${dept.name}`;
+  document.getElementById('dept-title').textContent = dept.name;
   document.getElementById('dept-meta').textContent =
     `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
   document.getElementById('add-btn').style.display = 'inline-block';
