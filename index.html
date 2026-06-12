@@ -2803,23 +2803,37 @@ async function renderEmailAccessPanel() {
 
   const deptOptions = DEPARTMENTS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
   container.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div>
         <div style="font-size:13px;font-weight:700;color:#0f2a1e;">Department Email Access</div>
-        <div style="font-size:11px;color:#8a929a;margin-top:2px;">Control which email addresses can access each department via OTP.</div>
+        <div style="font-size:11px;color:#8a929a;margin-top:2px;">Control who can access each department, and who gets alerted on unauthorized attempts.</div>
       </div>
       <select id="email-panel-dept" onchange="loadDeptEmails()" style="border:1px solid #d8dde2;border-radius:6px;padding:7px 10px;font-size:12px;font-family:inherit;color:#1f2933;background:#fafbfa;cursor:pointer;">
         ${deptOptions}
       </select>
     </div>
+
+    <div style="font-size:11px;font-weight:700;color:#3f4a55;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Authorized emails</div>
     <div id="email-list" style="margin-bottom:12px;min-height:28px;"></div>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;margin-bottom:6px;">
       <input id="new-email-input" type="email" placeholder="Add email address"
              style="flex:1;padding:9px 12px;border:1.5px solid #d8dde2;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"
              onfocus="this.style.borderColor='#2a8f5e'" onblur="this.style.borderColor='#d8dde2'"
              onkeydown="if(event.key==='Enter') addDeptEmail()">
       <button onclick="addDeptEmail()" style="background:#0f2a1e;color:#fff;border:0;padding:9px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Add</button>
     </div>
+
+    <div style="border-top:1px solid #f0f2f4;margin:16px 0;"></div>
+    <div style="font-size:11px;font-weight:700;color:#3f4a55;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Alert recipient</div>
+    <div style="font-size:11px;color:#8a929a;margin-bottom:8px;">This person gets an email whenever an unauthorized login attempt is made on this department.</div>
+    <div style="display:flex;gap:8px;">
+      <input id="alert-email-input" type="email" placeholder="e.g. dept-head@bambrew.in"
+             style="flex:1;padding:9px 12px;border:1.5px solid #d8dde2;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"
+             onfocus="this.style.borderColor='#b03030'" onblur="this.style.borderColor='#d8dde2'"
+             onkeydown="if(event.key==='Enter') saveAlertEmail()">
+      <button onclick="saveAlertEmail()" style="background:#842121;color:#fff;border:0;padding:9px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+    </div>
+
     <div id="email-panel-msg" style="font-size:11px;margin-top:8px;min-height:14px;"></div>`;
   loadDeptEmails();
 }
@@ -2841,6 +2855,8 @@ async function loadDeptEmails() {
           <button onclick="removeDeptEmail('${e}')" title="Remove" style="background:none;border:none;color:#b03030;cursor:pointer;font-size:14px;line-height:1;padding:0;font-weight:700;">&times;</button>
         </span>`).join('');
     }
+    const alertInput = document.getElementById('alert-email-input');
+    if (alertInput) alertInput.value = data.alertEmail || '';
   } catch {
     listEl.innerHTML = '<span style="font-size:11px;color:#b03030;">Could not load emails.</span>';
   }
@@ -2858,14 +2874,38 @@ async function addDeptEmail() {
   try {
     const existing = await fetch(`/api/auth/manage-emails?dept=${dept}`).then(r => r.json());
     const emails = [...new Set([...(existing.emails || []), email])];
+    const alertEmail = document.getElementById('alert-email-input').value.trim().toLowerCase();
     const r = await fetch('/api/auth/manage-emails', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dept, emails }),
+      body: JSON.stringify({ dept, emails, alertEmail }),
     });
     if (r.ok) {
       input.value = '';
       msgEl.style.color = '#2a8f5e'; msgEl.textContent = `${email} added.`;
       loadDeptEmails();
+      setTimeout(() => { msgEl.textContent = ''; }, 2500);
+    } else {
+      msgEl.style.color = '#b03030'; msgEl.textContent = 'Failed to save.';
+    }
+  } catch {
+    msgEl.style.color = '#b03030'; msgEl.textContent = 'Network error.';
+  }
+}
+
+async function saveAlertEmail() {
+  const dept = document.getElementById('email-panel-dept').value;
+  const alertEmail = document.getElementById('alert-email-input').value.trim().toLowerCase();
+  const msgEl = document.getElementById('email-panel-msg');
+  msgEl.style.color = '#8a929a'; msgEl.textContent = 'Saving...';
+  try {
+    const existing = await fetch(`/api/auth/manage-emails?dept=${dept}`).then(r => r.json());
+    const r = await fetch('/api/auth/manage-emails', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dept, emails: existing.emails || [], alertEmail }),
+    });
+    if (r.ok) {
+      msgEl.style.color = '#2a8f5e';
+      msgEl.textContent = alertEmail ? `Alert recipient set to ${alertEmail}.` : 'Alert recipient cleared.';
       setTimeout(() => { msgEl.textContent = ''; }, 2500);
     } else {
       msgEl.style.color = '#b03030'; msgEl.textContent = 'Failed to save.';

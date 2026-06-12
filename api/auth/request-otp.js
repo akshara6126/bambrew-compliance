@@ -23,9 +23,42 @@ export default async function handler(req, res) {
     }
 
     // Check authorized emails for this dept
-    const authorizedEmails = (await kv.get(`dept-emails:${dept}`)) || [];
-    const isAuthorized = authorizedEmails.map(e => e.toLowerCase()).includes(emailLower);
+    const [authorizedEmails, alertEmail] = await Promise.all([
+      kv.get(`dept-emails:${dept}`),
+      kv.get(`dept-alert-email:${dept}`),
+    ]);
+    const authorized = (authorizedEmails || []).map(e => e.toLowerCase());
+    const isAuthorized = authorized.includes(emailLower);
+
     if (!isAuthorized) {
+      // Fire-and-forget alert to the dept owner (don't await — respond to attacker quickly)
+      if (alertEmail) {
+        const deptName = DEPT_NAMES[dept] || dept;
+        const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+        const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+        resend.emails.send({
+          from: `Bambrew Compliance <${fromEmail}>`,
+          to: alertEmail,
+          subject: `Unauthorized access attempt on ${deptName}`,
+          html: `
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:460px;margin:0 auto;padding:40px 28px;background:#fff;border:1px solid #e6e8eb;border-radius:8px;">
+              <div style="margin-bottom:24px;">
+                <span style="background:#0f2a1e;color:#fff;padding:5px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.8px;">BAMBREW COMPLIANCE</span>
+              </div>
+              <div style="background:#fff3f3;border:1px solid #f5c6c6;border-radius:8px;padding:20px 22px;margin-bottom:20px;">
+                <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#842121;">Unauthorized access attempt</p>
+                <p style="margin:0;font-size:13px;color:#57636d;">Someone tried to access the <strong>${deptName}</strong> compliance dashboard using an email that is not on the authorized list.</p>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <tr><td style="padding:8px 0;color:#8a929a;width:110px;">Email used</td><td style="padding:8px 0;color:#0f2a1e;font-weight:600;">${emailLower}</td></tr>
+                <tr><td style="padding:8px 0;color:#8a929a;">Department</td><td style="padding:8px 0;color:#0f2a1e;">${deptName}</td></tr>
+                <tr><td style="padding:8px 0;color:#8a929a;">Time (IST)</td><td style="padding:8px 0;color:#0f2a1e;">${now}</td></tr>
+              </table>
+              <p style="color:#c0c8d0;font-size:11px;margin:20px 0 0 0;">If this was a teammate who simply hasn't been added yet, go to Management View and add their email to the ${deptName} access list.</p>
+            </div>
+          `,
+        }).catch(() => {}); // silently ignore email errors
+      }
       return res.status(403).json({ error: 'This email is not authorized for this department. Contact your manager.' });
     }
 

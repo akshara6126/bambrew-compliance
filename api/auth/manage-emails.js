@@ -10,17 +10,27 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { dept } = req.query;
     if (!dept) return res.status(400).json({ error: 'dept required' });
-    const emails = (await kv.get(`dept-emails:${dept}`)) || [];
-    return res.status(200).json({ emails });
+    const [emails, alertEmail] = await Promise.all([
+      kv.get(`dept-emails:${dept}`),
+      kv.get(`dept-alert-email:${dept}`),
+    ]);
+    return res.status(200).json({ emails: emails || [], alertEmail: alertEmail || '' });
   }
 
   if (req.method === 'POST') {
-    const { dept, emails } = req.body || {};
+    const { dept, emails, alertEmail } = req.body || {};
     if (!dept || !Array.isArray(emails)) {
       return res.status(400).json({ error: 'dept and emails array required' });
     }
     const cleaned = [...new Set(emails.map(e => e.toLowerCase().trim()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))];
-    await kv.set(`dept-emails:${dept}`, cleaned);
+    const ops = [kv.set(`dept-emails:${dept}`, cleaned)];
+    if (alertEmail !== undefined) {
+      const alert = alertEmail.toLowerCase().trim();
+      ops.push(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alert)
+        ? kv.set(`dept-alert-email:${dept}`, alert)
+        : kv.del(`dept-alert-email:${dept}`));
+    }
+    await Promise.all(ops);
     return res.status(200).json({ success: true, emails: cleaned });
   }
 
