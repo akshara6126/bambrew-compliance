@@ -551,30 +551,36 @@
   }
 
   /* Table */
+  .table-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
   .comp-table {
     width: 100%;
+    min-width: 1300px;
     background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: 12.5px;
     table-layout: fixed;
   }
   .comp-table thead th {
     background: #0f2a1e;
     color: #fff;
     text-align: left;
-    padding: 11px 10px;
+    padding: 13px 14px;
     font-size: 11px;
     font-weight: 600;
+    white-space: nowrap;
   }
   .comp-table tbody td {
-    padding: 11px 10px;
+    padding: 16px 14px;
     border-bottom: 1px solid #eaedef;
     vertical-align: top;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    line-height: 1.5;
   }
   .comp-table tbody tr:hover td { background: #f8fafa; }
 
@@ -988,23 +994,25 @@
 
     <div class="stats-strip" id="stats-strip"></div>
 
+    <div class="table-scroll-wrap">
     <table class="comp-table">
       <thead>
         <tr>
-          <th style="width: 4%;">S.No</th>
-          <th style="width: 22%;">Description</th>
-          <th style="width: 14%;">Statutory Reference</th>
-          <th style="width: 9%;">Frequency</th>
-          <th style="width: 9%;">Due date for</th>
-          <th style="width: 10%;">Due dates</th>
-          <th style="width: 9%;">Process Owner</th>
-          <th style="width: 9%;">Current POC</th>
-          <th style="width: 8%;">Function</th>
-          <th style="width: 6%;">Status</th>
+          <th style="width: 52px;">S.No</th>
+          <th style="min-width: 240px;">Description</th>
+          <th style="min-width: 160px;">Statutory Reference</th>
+          <th style="min-width: 110px;">Frequency</th>
+          <th style="min-width: 120px;">Due date for</th>
+          <th style="min-width: 120px;">Due dates</th>
+          <th style="min-width: 120px;">Process Owner</th>
+          <th style="min-width: 120px;">Current POC</th>
+          <th style="min-width: 100px;">Function</th>
+          <th style="min-width: 80px;">Status</th>
         </tr>
       </thead>
       <tbody id="comp-tbody"></tbody>
     </table>
+    </div>
   </div>
 
 </div>
@@ -2801,33 +2809,33 @@ function renderTable(items, showDeptCol) {
   const thead = document.querySelector('.comp-table thead tr');
   if (showDeptCol) {
     thead.innerHTML = `
-      <th style="width: 3%;">#</th>
-      <th style="width: 6%;">Status</th>
-      <th style="width: 6%;">Priority</th>
-      <th style="width: 6%;">Dept</th>
-      <th style="width: 14%;">Description</th>
-      <th style="width: 9%;">Statutory Reference</th>
-      <th style="width: 5%;">Frequency</th>
-      <th style="width: 7%;">Due dates</th>
-      <th style="width: 8%;">Process Owner</th>
-      <th style="width: 8%;">Current POC</th>
-      <th style="width: 6%;">Function</th>
-      <th style="width: 16%;">Remarks</th>
-      <th style="width: 6%;">Info</th>`;
+      <th style="width: 52px;">#</th>
+      <th style="min-width: 90px;">Status</th>
+      <th style="min-width: 100px;">Priority</th>
+      <th style="min-width: 90px;">Dept</th>
+      <th style="min-width: 220px;">Description</th>
+      <th style="min-width: 150px;">Statutory Reference</th>
+      <th style="min-width: 100px;">Frequency</th>
+      <th style="min-width: 110px;">Due dates</th>
+      <th style="min-width: 120px;">Process Owner</th>
+      <th style="min-width: 120px;">Current POC</th>
+      <th style="min-width: 90px;">Function</th>
+      <th style="min-width: 180px;">Remarks</th>
+      <th style="min-width: 60px;">Info</th>`;
   } else {
     thead.innerHTML = `
-      <th style="width: 3%;">#</th>
-      <th style="width: 7%;">Status</th>
-      <th style="width: 7%;">Priority</th>
-      <th style="width: 17%;">Description</th>
-      <th style="width: 10%;">Statutory Reference</th>
-      <th style="width: 6%;">Frequency</th>
-      <th style="width: 7%;">Due dates</th>
-      <th style="width: 9%;">Process Owner</th>
-      <th style="width: 9%;">Current POC</th>
-      <th style="width: 6%;">Function</th>
-      <th style="width: 13%;">Remarks</th>
-      <th style="width: 6%;">Info</th>`;
+      <th style="width: 52px;">#</th>
+      <th style="min-width: 90px;">Status</th>
+      <th style="min-width: 110px;">Priority</th>
+      <th style="min-width: 240px;">Description</th>
+      <th style="min-width: 160px;">Statutory Reference</th>
+      <th style="min-width: 100px;">Frequency</th>
+      <th style="min-width: 110px;">Due dates</th>
+      <th style="min-width: 130px;">Process Owner</th>
+      <th style="min-width: 130px;">Current POC</th>
+      <th style="min-width: 90px;">Function</th>
+      <th style="min-width: 180px;">Remarks</th>
+      <th style="min-width: 60px;">Info</th>`;
   }
 
   // Apply type filter + search filter
