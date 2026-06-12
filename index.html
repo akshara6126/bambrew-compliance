@@ -2632,7 +2632,7 @@ function openAddCompliance() {
   const dept = DEPARTMENTS.find(d => d.id === deptId);
   if (!dept) return;
   const html = `
-    <h3>+ Add new compliance for ${dept.icon} ${dept.name}</h3>
+    <h3>+ Add new compliance for ${dept.name}</h3>
     <p>Fill in the details. The new row syncs to every teammate after saving.</p>
     <div class="form-grid">
       <div class="form-row full">
@@ -2892,7 +2892,7 @@ function renderTable(items, showDeptCol) {
     const status = getStatus(c);
     const isDone = status === 'completed';
     const deptCell = showDeptCol
-      ? `<td><span style="font-size:11px; color:#0f2a1e; font-weight:700;">${dept.icon} ${dept.name}</span></td>`
+      ? `<td><span style="font-size:11px; color:#0f2a1e; font-weight:700;">${dept.name}</span></td>`
       : '';
     const statusOptions = [
       ['not-started', '🔴 New'],
@@ -3081,7 +3081,7 @@ function renderWhatsNewDrawer() {
             <span class="compliance-flag">🎯 Likely compliance</span>
           </div>
           <h4 class="nc-title">${c.description}</h4>
-          <div class="nc-sig"><b>Dept:</b> ${dept ? dept.icon + ' ' + dept.name : c.dept} · <b>Type:</b> ${c.type} · <b>Source:</b> ${c.statutoryRef || '—'}</div>
+          <div class="nc-sig"><b>Dept:</b> ${dept ? dept.name : c.dept} · <b>Type:</b> ${c.type} · <b>Source:</b> ${c.statutoryRef || '—'}</div>
           <div class="nc-source">
             ${c.url ? `<a href="${c.url}" target="_blank">↗ Open source</a> · ` : ''}
             <button onclick="promoteAutoCompliance('${c.id}')" style="background:#2a8f5e;color:#fff;border:0;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;margin-right:5px;font-family:inherit;">✓ Keep — add to ${dept ? dept.name : c.dept}</button>
