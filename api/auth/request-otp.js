@@ -31,14 +31,16 @@ export default async function handler(req, res) {
     const isAuthorized = authorized.includes(emailLower);
 
     if (!isAuthorized) {
+      // Fall back to admin email if no per-dept alert email is configured
+      const effectiveAlertEmail = alertEmail || 'f20240761@pilani.bits-pilani.ac.in';
       // Fire-and-forget alert to the dept owner (don't await — respond to attacker quickly)
-      if (alertEmail) {
+      if (effectiveAlertEmail) {
         const deptName = DEPT_NAMES[dept] || dept;
         const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
         const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
         resend.emails.send({
           from: `Bambrew Compliance <${fromEmail}>`,
-          to: alertEmail,
+          to: effectiveAlertEmail,
           subject: `Unauthorized access attempt on ${deptName}`,
           html: `
             <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:460px;margin:0 auto;padding:40px 28px;background:#fff;border:1px solid #e6e8eb;border-radius:8px;">
