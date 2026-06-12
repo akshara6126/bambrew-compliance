@@ -3418,6 +3418,14 @@ function closeWhatsNew() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeWhatsNew(); });
 
+function _trashBtn(id, type) {
+  return `<button onclick="dismissNewsItem('${id}','${type}')" title="Remove permanently"
+    style="background:none;border:none;cursor:pointer;color:#b0b8c1;padding:2px 4px;border-radius:4px;display:flex;align-items:center;transition:color .15s;"
+    onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='#b0b8c1'">
+    <i data-lucide="trash-2" style="width:13px;height:13px;pointer-events:none;"></i>
+  </button>`;
+}
+
 function renderWhatsNewDrawer() {
   const news = (typeof NEWS !== 'undefined' && Array.isArray(NEWS)) ? NEWS : [];
   const pending = autoCompliances();
@@ -3427,31 +3435,37 @@ function renderWhatsNewDrawer() {
   }
   let html = '';
   if (pending.length > 0) {
-    html += `<h4 style="font-family:'Fraunces',serif; margin: 0 0 10px 0; font-size: 14px; color: #0f2a1e;">🤖 Auto-discovered compliances · needs your review</h4>`;
+    html += `<h4 style="font-family:'Fraunces',serif;margin:0 0 10px;font-size:14px;color:#0f2a1e;">Auto-discovered compliances · needs your review</h4>`;
     pending.forEach(c => {
       const dept = DEPARTMENTS.find(d => d.id === c.dept);
       html += `
         <div class="news-card likely-compliance">
-          <div class="nc-date">${c.discoveredOn ? new Date(c.discoveredOn).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : 'Recently'}
-            <span class="compliance-flag">🎯 Likely compliance</span>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div class="nc-date" style="flex:1;">${c.discoveredOn ? new Date(c.discoveredOn).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : 'Recently'}
+              <span class="compliance-flag">Likely compliance</span>
+            </div>
+            ${_trashBtn(c.id, 'compliance')}
           </div>
           <h4 class="nc-title">${c.description}</h4>
-          <div class="nc-sig"><b>Dept:</b> ${dept ? dept.name : c.dept} · <b>Type:</b> ${c.type} · <b>Source:</b> ${c.statutoryRef || ''}</div>
+          <div class="nc-sig"><b>Dept:</b> ${dept ? dept.name : c.dept} · <b>Type:</b> ${c.type} · <b>Ref:</b> ${c.statutoryRef || ''}</div>
           <div class="nc-source">
-            ${c.url ? `<a href="${c.url}" target="_blank">↗ Open source</a> · ` : ''}
-            <button onclick="promoteAutoCompliance('${c.id}')" style="background:#2a8f5e;color:#fff;border:0;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;margin-right:5px;font-family:inherit;">✓ Keep: add to ${dept ? dept.name : c.dept}</button>
-            <button onclick="dismissAutoCompliance('${c.id}')" style="background:transparent;color:#842121;border:1px solid #fadcdc;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;font-family:inherit;">✗ Dismiss</button>
+            ${c.url ? `<a href="${c.url}" target="_blank">Open source</a> · ` : ''}
+            <button onclick="promoteAutoCompliance('${c.id}')" style="background:#2a8f5e;color:#fff;border:0;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;margin-right:5px;font-family:inherit;">Add to ${dept ? dept.name : c.dept}</button>
+            <button onclick="dismissAutoCompliance('${c.id}')" style="background:transparent;color:#842121;border:1px solid #fadcdc;padding:4px 10px;border-radius:4px;font-weight:700;font-size:10.5px;cursor:pointer;font-family:inherit;">Dismiss</button>
           </div>
         </div>`;
     });
     html += `<div style="height:18px;"></div>`;
   }
   if (news.length > 0) {
-    html += `<h4 style="font-family:'Fraunces',serif; margin: 0 0 10px 0; font-size: 14px; color: #0f2a1e;">📰 Regulatory news &amp; signals</h4>`;
+    html += `<h4 style="font-family:'Fraunces',serif;margin:0 0 10px;font-size:14px;color:#0f2a1e;">Regulatory news &amp; signals</h4>`;
     [...news].sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(n => {
       html += `
         <div class="news-card ${n.regulatory ? 'regulatory' : ''}">
-          <div class="nc-date">${new Date(n.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div class="nc-date" style="flex:1;">${new Date(n.date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}</div>
+            ${_trashBtn(n.id, 'news')}
+          </div>
           <h4 class="nc-title">${n.title}</h4>
           ${n.significance ? `<div class="nc-sig">${n.significance}</div>` : ''}
           <div class="nc-source">
@@ -3461,13 +3475,37 @@ function renderWhatsNewDrawer() {
     });
   }
   if (pending.length === 0 && news.length === 0) {
-    html = `<p style="color:#6b7680; padding:20px 0; text-align:center;">No new items yet. The Monday + Thursday auto-refresh will populate this.</p>`;
+    html = `<p style="color:#6b7680;padding:20px 0;text-align:center;">No new items yet. Auto-refreshes every Monday and Thursday.</p>`;
   }
   if (typeof LAST_REFRESH !== 'undefined' && LAST_REFRESH) {
-    html += `<div style="margin-top:14px; font-size: 10px; color: #6b7680; text-align:center; border-top: 1px solid #eaedef; padding-top: 8px;">Last refresh: ${LAST_REFRESH}</div>`;
+    html += `<div style="margin-top:14px;font-size:10px;color:#6b7680;text-align:center;border-top:1px solid #eaedef;padding-top:8px;">Last refresh: ${LAST_REFRESH}</div>`;
   }
   document.getElementById('news-body').innerHTML = html;
   lucide.createIcons();
+}
+
+async function dismissNewsItem(id, type) {
+  // Optimistic UI — remove immediately
+  if (type === 'news') {
+    NEWS = NEWS.filter(n => n.id !== id);
+  } else {
+    dismissedAutoIds.push(id);
+    localStorage.setItem('comp-dismissed-auto', JSON.stringify(dismissedAutoIds));
+  }
+  renderWhatsNewDrawer();
+  renderWhatsNewBadge();
+
+  // Persist to server so it never comes back
+  try {
+    await fetch('/api/news', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dismissId: id }),
+    });
+    if (type !== 'news') scheduleSyncToServer(); // sync dismissedAutoIds too
+  } catch (e) {
+    console.warn('Dismiss failed:', e);
+  }
 }
 
 function renderWhatsNewBadge() {

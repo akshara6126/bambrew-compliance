@@ -169,49 +169,67 @@ export default async function handler(req, res) {
 
     filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
-    const newsItems = [];
-    const complianceItems = [];
+    // Load existing data + permanently dismissed IDs
+    const [existing, dismissed] = await Promise.all([
+      kv.get('whats-new-data'),
+      kv.get('dismissed-news-ids'),
+    ]);
+    const dismissedSet = new Set(dismissed || []);
+    const existingNews        = (existing?.news        || []).filter(n => !dismissedSet.has(n.id));
+    const existingCompliances = (existing?.compliances || []).filter(c => !dismissedSet.has(c.id));
+    const existingNewsIds        = new Set(existingNews.map(n => n.id));
+    const existingComplianceIds  = new Set(existingCompliances.map(c => c.id));
+
+    const freshNews = [];
+    const freshCompliances = [];
 
     for (const item of filtered.slice(0, 80)) {
       const id   = makeId(item.link);
+      if (dismissedSet.has(id)) continue; // permanently dismissed — never resurface
       const date = item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString();
 
       if (isLikelyCompliance(item.title)) {
-        complianceItems.push({
-          id,
-          dept: item.dept,
-          description: item.title,
-          type: 'statutory',
-          statutoryRef: item.label,
-          url: item.link,
-          discoveredOn: date,
-          source: item.source,
-        });
+        if (!existingComplianceIds.has(id)) {
+          freshCompliances.push({
+            id,
+            dept: item.dept,
+            description: item.title,
+            type: 'statutory',
+            statutoryRef: item.label,
+            url: item.link,
+            discoveredOn: date,
+            source: item.source,
+          });
+        }
       } else {
-        newsItems.push({
-          id,
-          title: item.title,
-          url: item.link,
-          source: item.source || item.label,
-          date,
-          significance: `${item.label} update`,
-          regulatory: true,
-        });
+        if (!existingNewsIds.has(id)) {
+          freshNews.push({
+            id,
+            title: item.title,
+            url: item.link,
+            source: item.source || item.label,
+            date,
+            significance: `${item.label} update`,
+            regulatory: true,
+          });
+        }
       }
     }
 
+    // New items go to the top; old ones slide down — keep up to 50/20
     const payload = {
-      news: newsItems.slice(0, 30),
-      compliances: complianceItems.slice(0, 20),
+      news:        [...freshNews,        ...existingNews       ].slice(0, 50),
+      compliances: [...freshCompliances, ...existingCompliances].slice(0, 20),
       refreshedAt: new Date().toISOString(),
     };
 
-    await kv.set('whats-new-data', payload, { ex: 60 * 60 * 24 * 7 });
+    await kv.set('whats-new-data', payload, { ex: 60 * 60 * 24 * 30 }); // 30-day TTL
 
     return res.status(200).json({
       ok: true,
-      news: newsItems.length,
-      compliances: complianceItems.length,
+      fresh_news: freshNews.length,
+      fresh_compliances: freshCompliances.length,
+      total_news: payload.news.length,
       filtered_out: unique.length - filtered.length,
     });
   } catch (err) {
