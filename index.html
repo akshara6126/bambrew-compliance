@@ -781,14 +781,26 @@
   /* Section divider between statutory block and internal block */
   .comp-table tbody tr.type-divider td {
     background: #f4f6f8;
-    color: #57636d;
-    padding: 6px 11px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
+    color: #6b7680;
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
     border-top: 2px solid #d8dde2;
   }
+  .divider-label {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .divider-statutory { background: #0f2a1e; color: #fff; }
+  .divider-internal  { background: #e6e8eb; color: #3f4a55; }
 
   /* === Modal === */
   .modal-overlay {
@@ -986,10 +998,10 @@
 
     <!-- Search bar — visible in both dept view and management view -->
     <div class="search-bar">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon"><i data-lucide="search" style="width:15px;height:15px;vertical-align:middle;stroke:#57636d;"></i></span>
       <input id="search-input" type="text" placeholder="Search compliances (e.g. GST, CPCB, EPR, FSSAI, plastic, IS 17088, audit...)" oninput="onSearchChange()">
       <span id="search-meta" class="search-meta"></span>
-      <button id="search-clear" class="search-clear" onclick="clearSearch()" style="display:none;">✗ Clear</button>
+      <button id="search-clear" class="search-clear" onclick="clearSearch()" style="display:none;"><i data-lucide="x" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>Clear</button>
     </div>
 
     <div class="stats-strip" id="stats-strip"></div>
@@ -2436,7 +2448,7 @@ function priorityRank(p) {
   return ({ 'very-important': 0, 'important': 1, 'medium': 2, 'not-important': 3 })[p] ?? 2;
 }
 function priorityLabel(p) {
-  return ({ 'very-important': '🔥 V.High', 'important': '⚡ High', 'medium': '➖ Med', 'not-important': '💤 Low' })[p] || '➖ Med';
+  return ({ 'very-important': 'Critical', 'important': 'High', 'medium': 'Medium', 'not-important': 'Low' })[p] || 'Medium';
 }
 
 // === Remarks (free-text, syncs across team) ===
@@ -2742,8 +2754,8 @@ function renderStats(items) {
             <span class="stat-mand-count">${mand.length}</span>
           </div>
           <div class="stat-done-row">
-            <span class="stat-done-tag">✓ Done ${mDone}</span>
-            <span class="stat-notdone-tag">✗ Not done ${mNotDone}</span>
+            <span class="stat-done-tag">Done ${mDone}</span>
+            <span class="stat-notdone-tag">Pending ${mNotDone}</span>
           </div>
         </div>
         ${nonMand.length > 0 ? `
@@ -2754,8 +2766,8 @@ function renderStats(items) {
             <span class="stat-mand-count">${nonMand.length}</span>
           </div>
           <div class="stat-done-row">
-            <span class="stat-done-tag">✓ Done ${nmDone}</span>
-            <span class="stat-notdone-tag">✗ Not done ${nmNotDone}</span>
+            <span class="stat-done-tag">Done ${nmDone}</span>
+            <span class="stat-notdone-tag">Pending ${nmNotDone}</span>
           </div>
         </div>` : ''}
       </div>`;
@@ -2888,11 +2900,11 @@ function renderTable(items, showDeptCol) {
     displayIdx++;
     // Insert a divider when transitioning from statutory → internal
     if (lastType === 'statutory' && c.type === 'internal') {
-      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}">▽ Internal compliances (best practice / process)</td></tr>`);
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}"><span class="divider-label divider-internal">Internal</span> Best practice &amp; process</td></tr>`);
     } else if (lastType === null && c.type === 'statutory') {
-      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;">⚖️ Statutory compliances (legal — top priority)</td></tr>`);
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;"><span class="divider-label divider-statutory">Statutory</span> Legal &mdash; top priority</td></tr>`);
     } else if (lastType === null && c.type === 'internal') {
-      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;">▽ Internal compliances (best practice / process)</td></tr>`);
+      rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}" style="border-top:0;"><span class="divider-label divider-internal">Internal</span> Best practice &amp; process</td></tr>`);
     }
     lastType = c.type;
 
@@ -2903,9 +2915,9 @@ function renderTable(items, showDeptCol) {
       ? `<td><span style="font-size:11px; color:#0f2a1e; font-weight:700;">${dept.name}</span></td>`
       : '';
     const statusOptions = [
-      ['not-started', '🔴 New'],
-      ['in-progress', '🟡 WIP'],
-      ['completed',   '🟢 Done'],
+      ['not-started', 'New'],
+      ['in-progress', 'In Progress'],
+      ['completed',   'Done'],
     ].map(([v, lbl]) => `<option value="${v}" ${status === v ? 'selected' : ''}>${lbl}</option>`).join('');
     const typePill = c.type === 'statutory'
       ? '<span class="type-pill type-statutory"><i data-lucide="scale" style="width:9px;height:9px;vertical-align:middle;margin-right:3px;"></i>Statutory</span>'
@@ -2918,10 +2930,10 @@ function renderTable(items, showDeptCol) {
     const priority = getPriority(c);
     const isAutoAssigned = !!STATIC_PRIORITIES[compId(c)];
     const priorityOptions = [
-      ['very-important', '🔥 V.High'],
-      ['important',      '⚡ High'],
-      ['medium',         '➖ Med'],
-      ['not-important',  '💤 Low'],
+      ['very-important', 'Critical'],
+      ['important',      'High'],
+      ['medium',         'Medium'],
+      ['not-important',  'Low'],
     ].map(([v, lbl]) => `<option value="${v}" ${priority === v ? 'selected' : ''}>${lbl}</option>`).join('');
 
     const remarks = getRemarks(c);
@@ -2945,7 +2957,7 @@ function renderTable(items, showDeptCol) {
         <td class="completed-desc">
           <b>${c.description}</b>
           ${c.userAdded ? `<span class="user-added-badge">+ Added by team</span>
-            <button class="delete-btn" onclick="deleteUserCompliance('${c.id}')" title="Delete this compliance">✗ Delete</button>` : ''}
+            <button class="delete-btn" onclick="deleteUserCompliance('${c.id}')" title="Delete this compliance"><i data-lucide="trash-2" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>Delete</button>` : ''}
         </td>
         <td><span class="small">${c.statutoryRef}</span></td>
         <td><span class="freq-pill ${freqClass(c.frequency)}">${c.frequency}</span></td>
@@ -2974,7 +2986,7 @@ function renderTable(items, showDeptCol) {
                  title="Anyone on the team can add remarks here. Saves to all devices automatically.">
         </td>
         <td style="text-align:center;">
-          <a href="${infoUrl}" target="_blank" class="info-link" title="Learn more about this compliance (opens Google search)">🔗 Info</a>
+          <a href="${infoUrl}" target="_blank" class="info-link" title="Learn more about this compliance"><i data-lucide="external-link" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>Info</a>
         </td>
       </tr>`);
   });
