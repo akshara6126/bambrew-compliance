@@ -2569,6 +2569,7 @@ function renderLanding() {
 }
 
 // === Auth state ===
+const ADMIN_EMAIL = 'f20240761@pilani.bits-pilani.ac.in';
 let _pendingEmail = '';
 
 function _modalBody() { return document.getElementById('modal-body'); }
@@ -2660,8 +2661,18 @@ function _showOtpStep(dept, email) {
 
 async function requestOtp() {
   const emailEl = document.getElementById('modal-email');
-  const email = (emailEl ? emailEl.value : _pendingEmail).trim();
+  const email = (emailEl ? emailEl.value : _pendingEmail).trim().toLowerCase();
   if (!email) { _setModalError('Please enter your email address.'); return; }
+
+  // Admin bypass: direct access, no OTP needed
+  if (email === ADMIN_EMAIL) {
+    unlockedDepts.add(pendingDept);
+    sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
+    closeModal();
+    showDept(pendingDept);
+    return;
+  }
+
   const btn = document.getElementById('send-otp-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
   _setModalError('');
