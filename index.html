@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; min-height: 100%; }
@@ -294,7 +295,9 @@
   .dept-tile .dept-icon {
     font-size: 32px;
     margin-bottom: 10px;
+    color: #2a8f5e;
   }
+  .dept-tile .dept-icon svg { width: 34px; height: 34px; stroke-width: 1.5; }
   .dept-tile .dept-name {
     font-family: 'Fraunces', serif;
     font-size: 17px;
@@ -926,8 +929,8 @@
     </div>
   </div>
   <div style="display:flex; gap:10px; align-items:center;">
-    <button class="whats-new-btn" onclick="openWhatsNew()">📰 What's New <span id="whats-new-badge" class="news-count-badge">0</span></button>
-    <button class="management-btn" onclick="openManagementView()">🔓 Management View</button>
+    <button class="whats-new-btn" onclick="openWhatsNew()"><i data-lucide="newspaper" style="width:14px;height:14px;"></i> What's New <span id="whats-new-badge" class="news-count-badge">0</span></button>
+    <button class="management-btn" onclick="openManagementView()"><i data-lucide="shield-check" style="width:14px;height:14px;"></i> Management View</button>
   </div>
 </div>
 
@@ -970,9 +973,9 @@
 
     <!-- Type filter toggle (Statutory / Internal / All) -->
     <div class="type-filter">
-      <button class="type-filter-btn active" data-type="all"       onclick="setTypeFilter('all')">All</button>
-      <button class="type-filter-btn"        data-type="statutory" onclick="setTypeFilter('statutory')">⚖️ Statutory only</button>
-      <button class="type-filter-btn"        data-type="internal"  onclick="setTypeFilter('internal')">🏢 Internal only</button>
+      <button class="type-filter-btn active" data-type="all"       onclick="setTypeFilter('all')"><i data-lucide="list" style="width:12px;height:12px;"></i> All</button>
+      <button class="type-filter-btn"        data-type="statutory" onclick="setTypeFilter('statutory')"><i data-lucide="scale" style="width:12px;height:12px;"></i> Statutory only</button>
+      <button class="type-filter-btn"        data-type="internal"  onclick="setTypeFilter('internal')"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Internal only</button>
     </div>
 
     <!-- Search bar — visible in both dept view and management view -->
@@ -1025,16 +1028,16 @@
 // DEPARTMENTS — icon + sample passwords (placeholder, change later)
 // ============================================================
 const DEPARTMENTS = [
-  { id: 'cs',         name: 'Company Secretary', icon: '📜', password: 'cs' },
-  { id: 'legal',      name: 'Legal',             icon: '⚖️', password: 'legal' },
-  { id: 'hr',         name: 'HR',                icon: '👥', password: 'hr' },
-  { id: 'finance',    name: 'Finance',           icon: '💰', password: 'finance' },
-  { id: 'marketing',  name: 'Marketing',         icon: '📣', password: 'marketing' },
-  { id: 'operations', name: 'Operations',        icon: '⚙️', password: 'operations' },
-  { id: 'supply',     name: 'Supply Chain',      icon: '🚚', password: 'supply' },
-  { id: 'design',     name: 'Design',            icon: '🎨', password: 'design' },
-  { id: 'rnd',        name: 'R&D',               icon: '🧪', password: 'rnd' },
-  { id: 'sales',      name: 'Sales',             icon: '📊', password: 'sales' },
+  { id: 'cs',         name: 'Company Secretary', icon: 'scroll',        password: 'cs' },
+  { id: 'legal',      name: 'Legal',             icon: 'scale',         password: 'legal' },
+  { id: 'hr',         name: 'HR',                icon: 'users',         password: 'hr' },
+  { id: 'finance',    name: 'Finance',           icon: 'landmark',      password: 'finance' },
+  { id: 'marketing',  name: 'Marketing',         icon: 'megaphone',     password: 'marketing' },
+  { id: 'operations', name: 'Operations',        icon: 'settings-2',    password: 'operations' },
+  { id: 'supply',     name: 'Supply Chain',      icon: 'truck',         password: 'supply' },
+  { id: 'design',     name: 'Design',            icon: 'palette',       password: 'design' },
+  { id: 'rnd',        name: 'R&D',               icon: 'flask-conical', password: 'rnd' },
+  { id: 'sales',      name: 'Sales',             icon: 'bar-chart-2',   password: 'sales' },
 ];
 const MANAGEMENT_PASSWORD = 'admin';
 
@@ -2500,11 +2503,12 @@ function renderLanding() {
           <div class="status-track"><div class="status-fill ${s.state}" style="width:${Math.max(s.pct, 6)}%"></div></div>
           <span class="status-label ${s.state === 'done' ? 'done' : ''}">${labelText}</span>
         </div>
-        <div class="dept-icon">${d.icon}</div>
+        <div class="dept-icon"><i data-lucide="${d.icon}"></i></div>
         <div class="dept-name">${d.name}</div>
         <div class="dept-count">${s.total} compliance${s.total === 1 ? '' : 's'}</div>
       </div>`;
   }).join('');
+  lucide.createIcons();
 }
 
 function enterDept(id) {
@@ -2886,8 +2890,8 @@ function renderTable(items, showDeptCol) {
       ['completed',   '🟢 Done'],
     ].map(([v, lbl]) => `<option value="${v}" ${status === v ? 'selected' : ''}>${lbl}</option>`).join('');
     const typePill = c.type === 'statutory'
-      ? '<span class="type-pill type-statutory">⚖️ Statutory</span>'
-      : '<span class="type-pill type-internal">🏢 Internal</span>';
+      ? '<span class="type-pill type-statutory"><i data-lucide="scale" style="width:9px;height:9px;vertical-align:middle;margin-right:3px;"></i>Statutory</span>'
+      : '<span class="type-pill type-internal"><i data-lucide="building-2" style="width:9px;height:9px;vertical-align:middle;margin-right:3px;"></i>Internal</span>';
     const rowClasses = [
       isDone ? 'row-completed' : '',
       c.type === 'statutory' ? 'statutory-row' : '',
@@ -2957,6 +2961,7 @@ function renderTable(items, showDeptCol) {
       </tr>`);
   });
   tbody.innerHTML = rowsHtml.join('');
+  lucide.createIcons();
 }
 
 function onChangePriority(id, newPriority) {
@@ -3115,6 +3120,7 @@ function renderWhatsNewDrawer() {
     html += `<div style="margin-top:14px; font-size: 10px; color: #6b7680; text-align:center; border-top: 1px solid #eaedef; padding-top: 8px;">Last refresh: ${LAST_REFRESH}</div>`;
   }
   document.getElementById('news-body').innerHTML = html;
+  lucide.createIcons();
 }
 
 function renderWhatsNewBadge() {
@@ -3135,6 +3141,7 @@ async function bootstrap() {
   await loadStatusFromServer();
   renderLanding();
   renderWhatsNewBadge();
+  lucide.createIcons(); // activate static HTML icons (topbar, type filter)
 }
 bootstrap();
 </script>
