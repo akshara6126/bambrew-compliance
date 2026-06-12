@@ -36,6 +36,12 @@ const QUERIES = [
   { q: 'CPCB MoEFCC environment India compliance notification',     dept: 'operations',  label: 'Environment' },
   { q: 'green product certification ecolabel India',                dept: 'rnd',         label: 'Ecolabel' },
   { q: 'customs import export compliance India notification',       dept: 'supply',      label: 'Trade/Customs' },
+
+  // Food-contact packaging — relevant if Bambrew products touch food
+  { q: 'FSSAI food contact material packaging regulation India',    dept: 'rnd',         label: 'FSSAI Food Contact' },
+  { q: 'food grade packaging India regulation BIS standard',        dept: 'rnd',         label: 'Food-Grade Packaging' },
+  { q: 'food packaging safety India compliance notification',       dept: 'operations',  label: 'Food Packaging Safety' },
+  { q: 'food contact bamboo wood material safety India',            dept: 'rnd',         label: 'Bamboo Food Contact' },
 ];
 
 // Keywords that flag an article as likely a compliance action item
@@ -63,7 +69,7 @@ const TRUSTED_SOURCES = [
 
   // Government / official
   'pib', 'press information bureau', 'mca.gov', 'sebi.gov', 'cbic.gov',
-  'gst.gov', 'moef.gov', 'labour.gov', 'bis.gov', 'cpcb.nic',
+  'gst.gov', 'moef.gov', 'labour.gov', 'bis.gov', 'cpcb.nic', 'fssai.gov',
 
   // Wire services
   'pti', 'ani', 'ians',
