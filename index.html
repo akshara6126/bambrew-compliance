@@ -2260,6 +2260,7 @@ const STATIC_PRIORITIES = {
 // STATE & RENDERING
 // ============================================================
 let pendingDept = null;   // department the user is trying to access
+let currentDeptId = null; // which dept is currently shown (used by filter/search re-renders)
 let unlockedDepts = new Set(JSON.parse(sessionStorage.getItem('comp-unlocked') || '[]'));
 let managementMode = false;
 
@@ -2543,6 +2544,7 @@ function checkPassword() {
   if (pendingDept === '__management__') {
     if (val === MANAGEMENT_PASSWORD) {
       managementMode = true;
+      sessionStorage.setItem('comp-mgmt-unlocked', '1');
       closeModal();
       showManagement();
     } else {
@@ -2582,13 +2584,18 @@ function closeModal() {
 }
 
 function showDept(id) {
+  if (window.location.pathname !== '/' + id) {
+    history.pushState({ view: 'dept', id }, '', '/' + id);
+  }
   managementMode = false;
+  currentDeptId = id;
   const dept = DEPARTMENTS.find(d => d.id === id);
   const items = allCompliances().filter(c => c.dept === id);
 
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dept-view').classList.add('active');
-  document.getElementById('dept-title').textContent = `${dept.icon} ${dept.name}`;
+  const titleEl = document.getElementById('dept-title');
+  titleEl.innerHTML = `<i data-lucide="${dept.icon}" style="width:22px;height:22px;vertical-align:middle;margin-right:8px;color:#2a8f5e;stroke-width:1.5;"></i>${dept.name}`;
   document.getElementById('dept-meta').textContent =
     `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
   document.getElementById('add-btn').style.display = 'inline-block';
@@ -2604,9 +2611,13 @@ function showDept(id) {
 }
 
 function showManagement() {
+  if (window.location.pathname !== '/management') {
+    history.pushState({ view: 'management' }, '', '/management');
+  }
+  currentDeptId = null;
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dept-view').classList.add('active');
-  document.getElementById('dept-title').textContent = '🔓 Management View · All Departments';
+  document.getElementById('dept-title').textContent = 'Management View · All Departments';
   document.getElementById('dept-meta').textContent =
     `${allCompliances().length} compliance items across ${DEPARTMENTS.length} departments`;
   document.getElementById('add-btn').style.display = 'none';
@@ -2969,11 +2980,7 @@ function onChangePriority(id, newPriority) {
   if (!c) return;
   setPriority(c, newPriority);
   if (managementMode) showManagement();
-  else {
-    const titleText = document.getElementById('dept-title').textContent;
-    const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
-    if (dept) showDept(dept.id);
-  }
+  else if (currentDeptId) showDept(currentDeptId);
   renderLanding();
 }
 
@@ -2981,21 +2988,16 @@ function onChangeStatus(id, newStatus) {
   const c = allCompliances().find(x => compId(x) === id);
   if (!c) return;
   setStatus(c, newStatus);
-  // re-render whatever's visible
-  if (managementMode) {
-    showManagement();
-  } else {
-    const deptViewActive = document.getElementById('dept-view').classList.contains('active');
-    if (deptViewActive) {
-      const titleText = document.getElementById('dept-title').textContent;
-      const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
-      if (dept) showDept(dept.id);
-    }
-  }
+  if (managementMode) showManagement();
+  else if (currentDeptId) showDept(currentDeptId);
   renderLanding();
 }
 
 function backToLanding() {
+  if (window.location.pathname !== '/') {
+    history.pushState({ view: 'landing' }, '', '/');
+  }
+  currentDeptId = null;
   document.getElementById('landing').style.display = 'block';
   document.getElementById('dept-view').classList.remove('active');
   managementMode = false;
@@ -3015,22 +3017,13 @@ function setTypeFilter(t) {
   });
   // re-render
   if (managementMode) showManagement();
-  else {
-    const titleText = document.getElementById('dept-title').textContent;
-    const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
-    if (dept) showDept(dept.id);
-  }
+  else if (currentDeptId) showDept(currentDeptId);
 }
 
 function onSearchChange() {
   searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
-  // re-render whichever view is active
   if (managementMode) showManagement();
-  else {
-    const titleText = document.getElementById('dept-title').textContent;
-    const dept = DEPARTMENTS.find(d => titleText.includes(d.name));
-    if (dept) showDept(dept.id);
-  }
+  else if (currentDeptId) showDept(currentDeptId);
   const clearBtn = document.getElementById('search-clear');
   if (clearBtn) clearBtn.style.display = searchTerm ? 'inline-block' : 'none';
 }
@@ -3136,11 +3129,59 @@ function renderWhatsNewBadge() {
 const _renderLanding = renderLanding;
 renderLanding = function() { _renderLanding(); renderWhatsNewBadge(); };
 
-// Boot — load shared status from Vercel KV, then render
+// ============================================================
+// CLIENT-SIDE ROUTING
+// ============================================================
+function handleRoute() {
+  const path = window.location.pathname.replace(/^\//, '').toLowerCase().replace(/\/$/, '');
+
+  if (!path || path === 'index.html') {
+    // Landing
+    currentDeptId = null;
+    managementMode = false;
+    document.getElementById('landing').style.display = 'block';
+    document.getElementById('dept-view').classList.remove('active');
+    renderLanding();
+  } else if (path === 'management') {
+    if (sessionStorage.getItem('comp-mgmt-unlocked') === '1') {
+      managementMode = true;
+      showManagement();
+    } else {
+      // Show landing, then prompt for management password
+      document.getElementById('landing').style.display = 'block';
+      document.getElementById('dept-view').classList.remove('active');
+      renderLanding();
+      setTimeout(() => openManagementView(), 250);
+    }
+  } else {
+    const dept = DEPARTMENTS.find(d => d.id === path);
+    if (dept) {
+      if (unlockedDepts.has(dept.id)) {
+        showDept(dept.id);
+      } else {
+        // Show landing, then prompt for dept password
+        document.getElementById('landing').style.display = 'block';
+        document.getElementById('dept-view').classList.remove('active');
+        renderLanding();
+        setTimeout(() => enterDept(dept.id), 250);
+      }
+    } else {
+      // Unknown path — redirect to landing
+      history.replaceState({ view: 'landing' }, '', '/');
+      document.getElementById('landing').style.display = 'block';
+      document.getElementById('dept-view').classList.remove('active');
+      renderLanding();
+    }
+  }
+}
+
+window.addEventListener('popstate', handleRoute);
+
+// Boot — load shared status from Vercel KV, then route to current URL
 async function bootstrap() {
   await loadStatusFromServer();
-  renderLanding();
-  renderWhatsNewBadge();
+  history.replaceState({ view: 'initial' }, '', window.location.pathname);
+  handleRoute();
   lucide.createIcons(); // activate static HTML icons (topbar, type filter)
 }
 bootstrap();
