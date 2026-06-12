@@ -2861,7 +2861,9 @@ function renderTable(items, showDeptCol) {
   const colspan = showDeptCol ? 13 : 12;
   const rowsHtml = [];
   let lastType = null;
+  let displayIdx = 0;
   sortedItems.forEach(({ c, originalIdx }) => {
+    displayIdx++;
     // Insert a divider when transitioning from statutory → internal
     if (lastType === 'statutory' && c.type === 'internal') {
       rowsHtml.push(`<tr class="type-divider"><td colspan="${colspan}">▽ Internal compliances (best practice / process)</td></tr>`);
@@ -2905,7 +2907,7 @@ function renderTable(items, showDeptCol) {
     const infoUrl = `https://www.google.com/search?q=${infoQuery}`;
     rowsHtml.push(`
       <tr class="${rowClasses}">
-        <td>${originalIdx + 1}</td>
+        <td>${displayIdx}</td>
         <td>
           <select class="rag-select rag-${status}" onchange="onChangeStatus('${compId(c)}', this.value)" title="Status: ${status.replace('-', ' ')}">
             ${statusOptions}
