@@ -825,7 +825,9 @@
     color: #0f2a1e;
   }
   .modal p { color: #57636d; font-size: 13px; margin: 0 0 18px 0; }
-  .modal input[type="password"] {
+  .modal input[type="password"],
+  .modal input[type="email"],
+  .modal input[type="text"] {
     width: 100%;
     padding: 12px 14px;
     border: 1.5px solid #d8dde2;
@@ -834,8 +836,49 @@
     font-family: inherit;
     background: #fafbfa;
     outline: none;
+    box-sizing: border-box;
   }
-  .modal input[type="password"]:focus { border-color: #2a8f5e; }
+  .modal input[type="password"]:focus,
+  .modal input[type="email"]:focus,
+  .modal input[type="text"]:focus { border-color: #2a8f5e; }
+  .modal-otp-input {
+    text-align: center;
+    letter-spacing: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    font-family: monospace;
+  }
+  .modal-step-indicator {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .modal-step {
+    height: 3px;
+    flex: 1;
+    border-radius: 2px;
+    background: #e6e8eb;
+  }
+  .modal-step.active { background: #2a8f5e; }
+  .modal-email-hint {
+    font-size: 12px;
+    color: #57636d;
+    margin: 8px 0 0 0;
+  }
+  .modal-resend {
+    background: none;
+    border: none;
+    color: #2a8f5e;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+    margin-top: 10px;
+    display: block;
+  }
+  .modal-resend:hover { text-decoration: underline; }
+  .modal-resend:disabled { color: #a3acb3; cursor: default; }
   .modal-actions {
     margin-top: 16px;
     display: flex;
@@ -971,7 +1014,7 @@
   <div id="landing">
     <div class="landing-intro">
       <h2>Departments</h2>
-      <p>Click a department to view its compliance tracker (password protected)</p>
+      <p>Click a department to view its compliance tracker (email OTP protected)</p>
     </div>
     <div class="dept-grid" id="dept-grid"></div>
   </div>
@@ -1029,17 +1072,10 @@
 
 </div>
 
-<!-- ============================== PASSWORD MODAL ============================== -->
+<!-- ============================== AUTH MODAL ============================== -->
 <div class="modal-overlay" id="modal-overlay">
-  <div class="modal">
-    <h3 id="modal-title">🔐 Enter password</h3>
-    <p id="modal-subtitle">This area is restricted. Enter the team password to continue.</p>
-    <input type="password" id="modal-input" autofocus onkeydown="if(event.key==='Enter') checkPassword();" placeholder="Password">
-    <div class="modal-error" id="modal-error"></div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="checkPassword()">Enter →</button>
-    </div>
+  <div class="modal" id="modal-body">
+    <!-- content injected by JS -->
   </div>
 </div>
 
@@ -2532,75 +2568,171 @@ function renderLanding() {
   lucide.createIcons();
 }
 
-function enterDept(id) {
-  pendingDept = id;
-  if (unlockedDepts.has(id)) {
-    showDept(id);
-    return;
-  }
-  const dept = DEPARTMENTS.find(d => d.id === id);
-  document.getElementById('modal-title').textContent = '🔐 ' + dept.name;
-  document.getElementById('modal-subtitle').textContent = `Enter the ${dept.name} password to view its compliance tracker.`;
-  document.getElementById('modal-input').value = '';
-  document.getElementById('modal-error').textContent = '';
-  document.getElementById('modal-overlay').classList.add('show');
-  setTimeout(() => document.getElementById('modal-input').focus(), 100);
+// === Auth state ===
+let _pendingEmail = '';
+
+function _modalBody() { return document.getElementById('modal-body'); }
+function _setModalError(msg) {
+  const el = document.getElementById('modal-error');
+  if (el) el.textContent = msg;
 }
 
+// ---- Management view (password-based) ----
 function openManagementView() {
   pendingDept = '__management__';
-  document.getElementById('modal-title').textContent = '🔓 Management View';
-  document.getElementById('modal-subtitle').textContent = 'Enter the management password to see all departments combined.';
-  document.getElementById('modal-input').value = '';
-  document.getElementById('modal-error').textContent = '';
+  _modalBody().innerHTML = `
+    <div class="modal-step-indicator"><div class="modal-step active"></div></div>
+    <h3 style="margin:0 0 4px 0;font-size:20px;color:#0f2a1e;">Management View</h3>
+    <p style="color:#57636d;font-size:13px;margin:0 0 18px 0;">Enter the management password to continue.</p>
+    <input type="password" id="modal-input" placeholder="Password"
+           onkeydown="if(event.key==='Enter') checkManagementPassword();">
+    <div class="modal-error" id="modal-error"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="checkManagementPassword()">Enter</button>
+    </div>`;
   document.getElementById('modal-overlay').classList.add('show');
   setTimeout(() => document.getElementById('modal-input').focus(), 100);
 }
 
-function checkPassword() {
+function checkManagementPassword() {
   const val = document.getElementById('modal-input').value;
-  const errEl = document.getElementById('modal-error');
-
-  if (pendingDept === '__management__') {
-    if (val === MANAGEMENT_PASSWORD) {
-      managementMode = true;
-      sessionStorage.setItem('comp-mgmt-unlocked', '1');
-      closeModal();
-      showManagement();
-    } else {
-      errEl.textContent = '✗ Wrong password.';
-    }
-    return;
+  if (val === MANAGEMENT_PASSWORD) {
+    managementMode = true;
+    sessionStorage.setItem('comp-mgmt-unlocked', '1');
+    closeModal();
+    showManagement();
+  } else {
+    _setModalError('Wrong password.');
   }
+}
 
-  const dept = DEPARTMENTS.find(d => d.id === pendingDept);
-  if (val === dept.password) {
+// ---- Department access (email OTP) ----
+function enterDept(id) {
+  pendingDept = id;
+  if (unlockedDepts.has(id)) { showDept(id); return; }
+  const dept = DEPARTMENTS.find(d => d.id === id);
+  _showEmailStep(dept);
+}
+
+function _showEmailStep(dept) {
+  _pendingEmail = '';
+  _modalBody().innerHTML = `
+    <div class="modal-step-indicator">
+      <div class="modal-step active"></div>
+      <div class="modal-step"></div>
+    </div>
+    <h3 style="margin:0 0 4px 0;font-size:20px;color:#0f2a1e;">${dept.name}</h3>
+    <p style="color:#57636d;font-size:13px;margin:0 0 18px 0;">Enter your work email to receive a one-time password.</p>
+    <input type="email" id="modal-email" placeholder="you@bambrew.in" autocomplete="email"
+           onkeydown="if(event.key==='Enter') requestOtp();">
+    <div class="modal-error" id="modal-error"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="send-otp-btn" onclick="requestOtp()">Send OTP</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('modal-email').focus(), 100);
+}
+
+function _showOtpStep(dept, email) {
+  const masked = email.replace(/(.{2})(.+)(@.+)/, (_, a, b, c) => a + '*'.repeat(Math.min(b.length, 6)) + c);
+  _modalBody().innerHTML = `
+    <div class="modal-step-indicator">
+      <div class="modal-step active"></div>
+      <div class="modal-step active"></div>
+    </div>
+    <h3 style="margin:0 0 4px 0;font-size:20px;color:#0f2a1e;">${dept.name}</h3>
+    <p style="color:#57636d;font-size:13px;margin:0 0 18px 0;">A 6-digit code was sent to <strong>${masked}</strong></p>
+    <input type="text" id="modal-otp" class="modal-otp-input" placeholder="000000"
+           maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+           onkeydown="if(event.key==='Enter') verifyOtp();"
+           oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    <div class="modal-error" id="modal-error"></div>
+    <button class="modal-resend" id="resend-btn" onclick="resendOtp()">Resend code</button>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="_showEmailStep(DEPARTMENTS.find(d=>d.id===pendingDept))">Back</button>
+      <button class="btn-primary" id="verify-otp-btn" onclick="verifyOtp()">Verify</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('modal-otp').focus(), 100);
+}
+
+async function requestOtp() {
+  const emailEl = document.getElementById('modal-email');
+  const email = (emailEl ? emailEl.value : _pendingEmail).trim();
+  if (!email) { _setModalError('Please enter your email address.'); return; }
+  const btn = document.getElementById('send-otp-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  _setModalError('');
+  try {
+    const r = await fetch('/api/auth/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, dept: pendingDept }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      _setModalError(data.error || 'Failed to send OTP.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Send OTP'; }
+      return;
+    }
+    _pendingEmail = email;
+    _showOtpStep(DEPARTMENTS.find(d => d.id === pendingDept), email);
+  } catch {
+    _setModalError('Network error. Please check your connection.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Send OTP'; }
+  }
+}
+
+function resendOtp() {
+  const btn = document.getElementById('resend-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  _setModalError('');
+  fetch('/api/auth/request-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: _pendingEmail, dept: pendingDept }),
+  }).then(r => r.json()).then(data => {
+    if (btn) { btn.disabled = false; btn.textContent = 'Resend code'; }
+    if (!data.success) _setModalError(data.error || 'Failed to resend.');
+  }).catch(() => {
+    if (btn) { btn.disabled = false; btn.textContent = 'Resend code'; }
+    _setModalError('Network error. Please try again.');
+  });
+}
+
+async function verifyOtp() {
+  const otp = (document.getElementById('modal-otp').value || '').trim();
+  if (otp.length !== 6) { _setModalError('Please enter the full 6-digit code.'); return; }
+  const btn = document.getElementById('verify-otp-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
+  _setModalError('');
+  try {
+    const r = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: _pendingEmail, dept: pendingDept, otp }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      _setModalError(data.error || 'Verification failed.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
+      return;
+    }
     unlockedDepts.add(pendingDept);
     sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
     closeModal();
     showDept(pendingDept);
-  } else {
-    errEl.textContent = '✗ Wrong password.';
+  } catch {
+    _setModalError('Network error. Please check your connection.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
   }
 }
 
 function closeModal() {
-  const overlay = document.getElementById('modal-overlay');
-  overlay.classList.remove('show');
-  // restore original password modal so next open isn't a wide form
-  setTimeout(() => {
-    const modal = overlay.querySelector('.modal');
-    modal.classList.remove('form-modal');
-    modal.innerHTML = `
-      <h3 id="modal-title">🔐 Enter password</h3>
-      <p id="modal-subtitle">This area is restricted. Enter the team password to continue.</p>
-      <input type="password" id="modal-input" autofocus onkeydown="if(event.key==='Enter') checkPassword();" placeholder="Password">
-      <div class="modal-error" id="modal-error"></div>
-      <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn-primary" onclick="checkPassword()">Enter →</button>
-      </div>`;
-  }, 250);
+  document.getElementById('modal-overlay').classList.remove('show');
+  setTimeout(() => { _modalBody().innerHTML = ''; }, 250);
 }
 
 function showDept(id) {
@@ -2640,10 +2772,110 @@ function showManagement() {
   document.getElementById('dept-meta').textContent =
     `${allCompliances().length} compliance items across ${DEPARTMENTS.length} departments`;
   document.getElementById('add-btn').style.display = 'none';
+  renderEmailAccessPanel();
   const all = allCompliances();
   const typeFiltered = typeFilter === 'all' ? all : all.filter(c => c.type === typeFilter);
   renderStats(typeFiltered);
   renderTable(all, true);
+}
+
+// === Email Access Configuration Panel (management only) ===
+async function renderEmailAccessPanel() {
+  let container = document.getElementById('email-access-panel');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'email-access-panel';
+    container.style.cssText = 'margin:0 0 20px 0;background:#fff;border-radius:8px;border:1px solid #e6e8eb;padding:20px 24px;';
+    const statsStrip = document.getElementById('stats-strip');
+    statsStrip.parentNode.insertBefore(container, statsStrip);
+  }
+
+  const deptOptions = DEPARTMENTS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#0f2a1e;">Department Email Access</div>
+        <div style="font-size:11px;color:#8a929a;margin-top:2px;">Control which email addresses can access each department via OTP.</div>
+      </div>
+      <select id="email-panel-dept" onchange="loadDeptEmails()" style="border:1px solid #d8dde2;border-radius:6px;padding:7px 10px;font-size:12px;font-family:inherit;color:#1f2933;background:#fafbfa;cursor:pointer;">
+        ${deptOptions}
+      </select>
+    </div>
+    <div id="email-list" style="margin-bottom:12px;min-height:28px;"></div>
+    <div style="display:flex;gap:8px;">
+      <input id="new-email-input" type="email" placeholder="Add email address"
+             style="flex:1;padding:9px 12px;border:1.5px solid #d8dde2;border-radius:6px;font-size:12px;font-family:inherit;outline:none;"
+             onfocus="this.style.borderColor='#2a8f5e'" onblur="this.style.borderColor='#d8dde2'"
+             onkeydown="if(event.key==='Enter') addDeptEmail()">
+      <button onclick="addDeptEmail()" style="background:#0f2a1e;color:#fff;border:0;padding:9px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Add</button>
+    </div>
+    <div id="email-panel-msg" style="font-size:11px;margin-top:8px;min-height:14px;"></div>`;
+  loadDeptEmails();
+}
+
+async function loadDeptEmails() {
+  const dept = document.getElementById('email-panel-dept').value;
+  const listEl = document.getElementById('email-list');
+  listEl.innerHTML = '<span style="font-size:11px;color:#8a929a;">Loading...</span>';
+  try {
+    const r = await fetch(`/api/auth/manage-emails?dept=${dept}`);
+    const data = await r.json();
+    const emails = data.emails || [];
+    if (emails.length === 0) {
+      listEl.innerHTML = '<span style="font-size:11.5px;color:#a3acb3;font-style:italic;">No emails configured — nobody can access this department yet.</span>';
+    } else {
+      listEl.innerHTML = emails.map(e => `
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#f4f6f8;border:1px solid #e6e8eb;border-radius:5px;padding:4px 10px;font-size:11.5px;margin:2px 4px 2px 0;">
+          ${e}
+          <button onclick="removeDeptEmail('${e}')" title="Remove" style="background:none;border:none;color:#b03030;cursor:pointer;font-size:14px;line-height:1;padding:0;font-weight:700;">&times;</button>
+        </span>`).join('');
+    }
+  } catch {
+    listEl.innerHTML = '<span style="font-size:11px;color:#b03030;">Could not load emails.</span>';
+  }
+}
+
+async function addDeptEmail() {
+  const dept = document.getElementById('email-panel-dept').value;
+  const input = document.getElementById('new-email-input');
+  const email = input.value.trim().toLowerCase();
+  const msgEl = document.getElementById('email-panel-msg');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    msgEl.style.color = '#b03030'; msgEl.textContent = 'Enter a valid email address.'; return;
+  }
+  msgEl.style.color = '#8a929a'; msgEl.textContent = 'Saving...';
+  try {
+    const existing = await fetch(`/api/auth/manage-emails?dept=${dept}`).then(r => r.json());
+    const emails = [...new Set([...(existing.emails || []), email])];
+    const r = await fetch('/api/auth/manage-emails', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dept, emails }),
+    });
+    if (r.ok) {
+      input.value = '';
+      msgEl.style.color = '#2a8f5e'; msgEl.textContent = `${email} added.`;
+      loadDeptEmails();
+      setTimeout(() => { msgEl.textContent = ''; }, 2500);
+    } else {
+      msgEl.style.color = '#b03030'; msgEl.textContent = 'Failed to save.';
+    }
+  } catch {
+    msgEl.style.color = '#b03030'; msgEl.textContent = 'Network error.';
+  }
+}
+
+async function removeDeptEmail(email) {
+  const dept = document.getElementById('email-panel-dept').value;
+  const msgEl = document.getElementById('email-panel-msg');
+  msgEl.style.color = '#8a929a'; msgEl.textContent = 'Removing...';
+  try {
+    await fetch(`/api/auth/manage-emails?dept=${dept}&email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+    msgEl.style.color = '#2a8f5e'; msgEl.textContent = `${email} removed.`;
+    loadDeptEmails();
+    setTimeout(() => { msgEl.textContent = ''; }, 2500);
+  } catch {
+    msgEl.style.color = '#b03030'; msgEl.textContent = 'Network error.';
+  }
 }
 
 // === Add Compliance modal ===
