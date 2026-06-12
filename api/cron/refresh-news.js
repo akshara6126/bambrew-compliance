@@ -1,27 +1,81 @@
 import { kv } from '@vercel/kv';
 
-// Search queries targeting Indian compliance/regulatory news relevant to Bambrew
+// Search queries — Bambrew-specific: bamboo, plastic regulation, sustainability, standard compliance areas
 const QUERIES = [
-  { q: 'MCA ministry corporate affairs circular notification India 2025', dept: 'cs', label: 'MCA' },
-  { q: 'GST India notification circular amendment 2025', dept: 'finance', label: 'GST' },
-  { q: 'income tax TDS TCS India compliance 2025', dept: 'finance', label: 'Income Tax' },
-  { q: 'India labour law PF ESI compliance notification 2025', dept: 'hr', label: 'Labour' },
-  { q: 'EPR extended producer responsibility packaging India 2025', dept: 'operations', label: 'EPR' },
-  { q: 'BIS standard certification India regulation 2025', dept: 'rnd', label: 'BIS' },
-  { q: 'SEBI India compliance regulation notification 2025', dept: 'finance', label: 'SEBI' },
-  { q: 'sustainable packaging bamboo India regulation 2025', dept: 'operations', label: 'Packaging' },
-  { q: 'India trademark patent IP registration 2025', dept: 'legal', label: 'IP' },
-  { q: 'consumer protection ASCI advertising India 2025', dept: 'marketing', label: 'Consumer' },
+  // Core regulatory bodies
+  { q: 'MCA ministry corporate affairs circular notification India', dept: 'cs',         label: 'MCA' },
+  { q: 'GST India notification circular amendment',                  dept: 'finance',     label: 'GST' },
+  { q: 'income tax TDS TCS India compliance notification',           dept: 'finance',     label: 'Income Tax' },
+  { q: 'SEBI India compliance regulation notification',              dept: 'finance',     label: 'SEBI' },
+  { q: 'India labour law PF ESI wages compliance notification',      dept: 'hr',          label: 'Labour' },
+  { q: 'India trademark patent intellectual property regulation',    dept: 'legal',       label: 'IP/Legal' },
+  { q: 'consumer protection ASCI advertising India regulation',      dept: 'marketing',   label: 'Consumer' },
+
+  // Plastic & packaging — core to Bambrew's market
+  { q: 'single use plastic ban India CPCB regulation',              dept: 'operations',  label: 'Plastic Ban' },
+  { q: 'Plastic Waste Management Rules India amendment',             dept: 'operations',  label: 'Plastic Waste' },
+  { q: 'EPR extended producer responsibility packaging India',       dept: 'operations',  label: 'EPR' },
+  { q: 'biodegradable compostable packaging India regulation',       dept: 'operations',  label: 'Biodegradable Packaging' },
+  { q: 'plastic alternatives regulation India policy',               dept: 'operations',  label: 'Plastic Alternatives' },
+
+  // Bamboo & sustainability
+  { q: 'bamboo regulation policy India NMBA mission',               dept: 'operations',  label: 'Bamboo Policy' },
+  { q: 'bamboo products standard BIS certification India',          dept: 'rnd',         label: 'Bamboo BIS' },
+  { q: 'bamboo forest conservation cultivation India',              dept: 'legal',       label: 'Bamboo Forest' },
+  { q: 'sustainable packaging regulation India green',              dept: 'operations',  label: 'Sustainable Packaging' },
+  { q: 'FSC forest certification India sustainable',                dept: 'rnd',         label: 'FSC/Certification' },
+
+  // ESG & sustainability reporting
+  { q: 'BRSR business responsibility sustainability reporting India SEBI', dept: 'finance', label: 'ESG/BRSR' },
+  { q: 'ESG sustainability disclosure India company',               dept: 'finance',     label: 'ESG' },
+  { q: 'carbon footprint disclosure India regulation',              dept: 'operations',  label: 'Carbon/Climate' },
+  { q: 'circular economy India policy green procurement',           dept: 'operations',  label: 'Circular Economy' },
+
+  // Environment & product standards
+  { q: 'BIS standard certification India product regulation',       dept: 'rnd',         label: 'BIS Standards' },
+  { q: 'CPCB MoEFCC environment India compliance notification',     dept: 'operations',  label: 'Environment' },
+  { q: 'green product certification ecolabel India',                dept: 'rnd',         label: 'Ecolabel' },
+  { q: 'customs import export compliance India notification',       dept: 'supply',      label: 'Trade/Customs' },
 ];
 
-// Keywords that suggest a news item is likely a compliance requirement
+// Keywords that flag an article as likely a compliance action item
 const COMPLIANCE_KEYWORDS = [
   'circular', 'notification', 'gazette', 'amendment', 'mandatory', 'penalty',
-  'deadline', 'due date', 'prescribed', 'required by', 'comply', 'compliance',
-  'last date', 'filing', 'return', 'form', 'schedule', 'section', 'rule',
+  'deadline', 'due date', 'last date', 'prescribed', 'required by', 'comply',
+  'compliance', 'filing', 'return', 'form no', 'schedule', 'section', 'rule',
+  'ban effective', 'prohibited', 'banned from', 'effective from', 'comes into force',
+  'notified', 'gazetted', 'enforced', 'extended', 'applicable from',
 ];
 
-// Simple RSS parser (no external deps)
+// Trusted sources only — partial case-insensitive match against source name
+const TRUSTED_SOURCES = [
+  // Business & financial press
+  'economic times', 'business standard', 'mint', 'livemint', 'financial express',
+  'hindu businessline', 'businessline', 'moneycontrol', 'ndtv profit', 'cnbctv18',
+  'bloomberg', 'reuters', 'hindu', 'times of india', 'india today',
+  'bq prime', 'fortune india', 'business today', 'inc42',
+
+  // Regulatory / legal / tax specialists
+  'taxmann', 'taxguru', 'cleartax', 'livelaw', 'barandbench', 'manupatra',
+
+  // Environment & sustainability
+  'down to earth', 'mongabay', 'climate home', 'eco-business',
+
+  // Government / official
+  'pib', 'press information bureau', 'mca.gov', 'sebi.gov', 'cbic.gov',
+  'gst.gov', 'moef.gov', 'labour.gov', 'bis.gov', 'cpcb.nic',
+
+  // Wire services
+  'pti', 'ani', 'ians',
+];
+
+function isTrustedSource(source) {
+  if (!source) return false;
+  const s = source.toLowerCase();
+  return TRUSTED_SOURCES.some(t => s.includes(t));
+}
+
+// Simple RSS parser — no external deps
 function parseRSS(xml) {
   const items = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -29,7 +83,9 @@ function parseRSS(xml) {
   while ((m = itemRegex.exec(xml)) !== null) {
     const block = m[1];
     const get = (tag) => {
-      const r = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+      const r = new RegExp(
+        `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'
+      );
       const match = r.exec(block);
       return match ? (match[1] || match[2] || '').trim() : '';
     };
@@ -39,19 +95,20 @@ function parseRSS(xml) {
       return match ? match[1].trim() : '';
     };
 
-    const title = get('title').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-    const link = get('link') || getAttr('link', 'href');
-    const pubDate = get('pubDate');
-    const source = get('source').replace(/&amp;/g, '&');
+    const decode = s => s
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ');
 
-    if (title && link) {
-      items.push({ title, link, pubDate, source });
-    }
+    const title  = decode(get('title'));
+    const link   = get('link') || getAttr('link', 'href');
+    const pubDate = get('pubDate');
+    const source  = decode(get('source'));
+
+    if (title && link) items.push({ title, link, pubDate, source });
   }
   return items;
 }
 
-// Fetch one Google News RSS query
 async function fetchQuery({ q, dept, label }) {
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-IN&gl=IN&ceid=IN:en`;
   try {
@@ -74,20 +131,17 @@ function makeId(url) {
   return 'auto-' + Math.abs(h).toString(36);
 }
 
-// Is this article likely a compliance requirement?
 function isLikelyCompliance(title) {
   const t = title.toLowerCase();
   return COMPLIANCE_KEYWORDS.some(kw => t.includes(kw));
 }
 
 export default async function handler(req, res) {
-  // Allow GET (cron trigger) and POST (manual refresh from management)
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Fetch all queries in parallel
     const allResults = await Promise.all(QUERIES.map(fetchQuery));
     const flat = allResults.flat();
 
@@ -99,22 +153,21 @@ export default async function handler(req, res) {
       return true;
     });
 
-    // Filter to items published in the last 5 days
+    // Filter: trusted sources only + published in last 5 days
     const cutoff = Date.now() - 5 * 24 * 60 * 60 * 1000;
-    const recent = unique.filter(item => {
-      const d = item.pubDate ? new Date(item.pubDate).getTime() : 0;
-      return d > cutoff;
+    const filtered = unique.filter(item => {
+      const trusted = isTrustedSource(item.source);
+      const recent = item.pubDate ? new Date(item.pubDate).getTime() > cutoff : false;
+      return trusted && recent;
     });
 
-    // Sort by date descending
-    recent.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
-    // Split into news and likely-compliance items
     const newsItems = [];
     const complianceItems = [];
 
-    for (const item of recent.slice(0, 60)) {
-      const id = makeId(item.link);
+    for (const item of filtered.slice(0, 80)) {
+      const id   = makeId(item.link);
       const date = item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString();
 
       if (isLikelyCompliance(item.title)) {
@@ -126,6 +179,7 @@ export default async function handler(req, res) {
           statutoryRef: item.label,
           url: item.link,
           discoveredOn: date,
+          source: item.source,
         });
       } else {
         newsItems.push({
@@ -146,9 +200,14 @@ export default async function handler(req, res) {
       refreshedAt: new Date().toISOString(),
     };
 
-    await kv.set('whats-new-data', payload, { ex: 60 * 60 * 24 * 7 }); // 7-day TTL
+    await kv.set('whats-new-data', payload, { ex: 60 * 60 * 24 * 7 });
 
-    return res.status(200).json({ ok: true, news: newsItems.length, compliances: complianceItems.length });
+    return res.status(200).json({
+      ok: true,
+      news: newsItems.length,
+      compliances: complianceItems.length,
+      filtered_out: unique.length - filtered.length,
+    });
   } catch (err) {
     console.error('refresh-news error:', err);
     return res.status(500).json({ error: 'Refresh failed.' });
