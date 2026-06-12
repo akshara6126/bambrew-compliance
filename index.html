@@ -3393,13 +3393,37 @@ function highlight(text) {
 // ============================================================
 // WHAT'S NEW DRAWER
 // ============================================================
+function showNewsToast(msg) {
+  const existing = document.getElementById('news-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'news-toast';
+  toast.textContent = msg;
+  toast.style.cssText = `
+    position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+    background:#0f2a1e;color:#fff;font-size:12px;font-weight:600;
+    padding:8px 18px;border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.18);
+    opacity:0;transition:opacity .25s;z-index:9999;pointer-events:none;white-space:nowrap;
+  `;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 10000);
+}
+
 async function manualRefreshNews() {
   const btn = document.getElementById('news-refresh-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" style="width:11px;height:11px;"></i> Fetching...'; lucide.createIcons(); }
   try {
-    await fetch('/api/cron/refresh-news', { method: 'GET' });
+    const res = await fetch('/api/cron/refresh-news', { method: 'GET' });
+    const data = await res.json();
     await loadNewsFromServer();
     renderWhatsNewDrawer();
+    if ((data.fresh_news || 0) === 0 && (data.fresh_compliances || 0) === 0) {
+      showNewsToast('Nothing new!');
+    }
   } catch (e) {
     console.warn('Manual refresh failed:', e);
   }
