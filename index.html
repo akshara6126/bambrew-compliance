@@ -3139,11 +3139,25 @@ renderLanding = function() { _renderLanding(); renderWhatsNewBadge(); };
 // ============================================================
 // CLIENT-SIDE ROUTING
 // ============================================================
+let _initialLoad = true;
+
 function handleRoute() {
   const path = window.location.pathname.replace(/^\//, '').toLowerCase().replace(/\/$/, '');
 
+  // On a hard refresh / direct URL access, always drop back to landing
+  if (_initialLoad && path && path !== 'index.html') {
+    _initialLoad = false;
+    history.replaceState({ view: 'landing' }, '', '/');
+    currentDeptId = null;
+    managementMode = false;
+    document.getElementById('landing').style.display = 'block';
+    document.getElementById('dept-view').classList.remove('active');
+    renderLanding();
+    return;
+  }
+  _initialLoad = false;
+
   if (!path || path === 'index.html') {
-    // Landing
     currentDeptId = null;
     managementMode = false;
     document.getElementById('landing').style.display = 'block';
@@ -3154,7 +3168,6 @@ function handleRoute() {
       managementMode = true;
       showManagement();
     } else {
-      // Show landing, then prompt for management password
       document.getElementById('landing').style.display = 'block';
       document.getElementById('dept-view').classList.remove('active');
       renderLanding();
@@ -3166,14 +3179,12 @@ function handleRoute() {
       if (unlockedDepts.has(dept.id)) {
         showDept(dept.id);
       } else {
-        // Show landing, then prompt for dept password
         document.getElementById('landing').style.display = 'block';
         document.getElementById('dept-view').classList.remove('active');
         renderLanding();
         setTimeout(() => enterDept(dept.id), 250);
       }
     } else {
-      // Unknown path — redirect to landing
       history.replaceState({ view: 'landing' }, '', '/');
       document.getElementById('landing').style.display = 'block';
       document.getElementById('dept-view').classList.remove('active');
