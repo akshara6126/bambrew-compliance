@@ -2,6 +2,7 @@ import { kv } from '@vercel/kv';
 import nodemailer from 'nodemailer';
 
 const DEPT_NAMES = {
+  __management__: 'Management View',
   cs: 'Company Secretary', legal: 'Legal', hr: 'HR', finance: 'Finance',
   marketing: 'Marketing', operations: 'Operations', supply: 'Supply Chain',
   design: 'Design', rnd: 'R&D', sales: 'Sales',

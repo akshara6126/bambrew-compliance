@@ -1082,7 +1082,6 @@ const DEPARTMENTS = [
   { id: 'rnd',        name: 'R&D',               icon: 'flask-conical', password: 'rnd' },
   { id: 'sales',      name: 'Sales',             icon: 'bar-chart-2',   password: 'sales' },
 ];
-const MANAGEMENT_PASSWORD = 'admin';
 
 // ============================================================
 // COMPLIANCES: sample data (2–3 per department for the prototype)
@@ -2640,33 +2639,8 @@ function _setModalError(msg) {
 // --- Management view (password, unchanged) ---
 function openManagementView() {
   pendingDept = '__management__';
-  _modalBody().innerHTML = `
-    <h3 style="margin:0 0 6px;font-size:17px;font-weight:700;color:#0f2a1e;">Management View</h3>
-    <p style="margin:0 0 20px;font-size:13px;color:#57636d;">Enter the management password to view all departments.</p>
-    <div class="form-row full" style="margin-bottom:14px;">
-      <input id="modal-pw-input" type="password" placeholder="Password" style="width:100%;box-sizing:border-box;"
-        onkeydown="if(event.key==='Enter')checkManagementPassword()" />
-    </div>
-    <div class="modal-error" id="modal-pw-error" style="min-height:18px;margin-bottom:12px;"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="checkManagementPassword()">Enter</button>
-    </div>`;
-  document.getElementById('modal-overlay').classList.add('show');
-  setTimeout(() => { const el = document.getElementById('modal-pw-input'); if(el) el.focus(); }, 100);
-}
-
-function checkManagementPassword() {
-  const val = (document.getElementById('modal-pw-input') || {}).value || '';
-  if (val === MANAGEMENT_PASSWORD) {
-    managementMode = true;
-    sessionStorage.setItem('comp-mgmt-unlocked', '1');
-    closeModal();
-    showManagement();
-  } else {
-    const err = document.getElementById('modal-pw-error');
-    if (err) err.textContent = 'Wrong password.';
-  }
+  if (sessionStorage.getItem('comp-mgmt-unlocked') === '1') { showManagement(); return; }
+  _showEmailStep();
 }
 
 // --- Department OTP flow ---
@@ -2678,9 +2652,10 @@ function enterDept(id) {
 
 function _showEmailStep() {
   const dept = DEPARTMENTS.find(d => d.id === pendingDept);
+  const deptName = dept ? dept.name : 'Management View';
   _modalBody().innerHTML = `
     <div class="modal-step-indicator"><div class="modal-step active"></div><div class="modal-step"></div></div>
-    <h3 style="margin:0 0 6px;font-size:17px;font-weight:700;color:#0f2a1e;">${dept.name}</h3>
+    <h3 style="margin:0 0 6px;font-size:17px;font-weight:700;color:#0f2a1e;">${deptName}</h3>
     <p style="margin:0 0 20px;font-size:13px;color:#57636d;">Enter your work email to receive a one-time access code.</p>
     <div class="form-row full" style="margin-bottom:14px;">
       <input id="otp-email-input" type="email" placeholder="you@company.com" style="width:100%;box-sizing:border-box;"
@@ -2697,9 +2672,10 @@ function _showEmailStep() {
 
 function _showOtpStep() {
   const dept = DEPARTMENTS.find(d => d.id === pendingDept);
+  const deptName = dept ? dept.name : 'Management View';
   _modalBody().innerHTML = `
     <div class="modal-step-indicator"><div class="modal-step"></div><div class="modal-step active"></div></div>
-    <h3 style="margin:0 0 6px;font-size:17px;font-weight:700;color:#0f2a1e;">${dept.name}</h3>
+    <h3 style="margin:0 0 6px;font-size:17px;font-weight:700;color:#0f2a1e;">${deptName}</h3>
     <p style="margin:0 0 4px;font-size:13px;color:#57636d;">A 6-digit code was sent to</p>
     <p style="margin:0 0 20px;font-size:13px;font-weight:600;color:#0f2a1e;">${_pendingEmail}</p>
     <div class="form-row full" style="margin-bottom:14px;">
@@ -2728,10 +2704,17 @@ async function requestOtp() {
   // Admin bypass
   if (email === ADMIN_EMAIL.toLowerCase()) {
     _pendingEmail = email;
-    unlockedDepts.add(pendingDept);
-    sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
-    closeModal();
-    showDept(pendingDept);
+    if (pendingDept === '__management__') {
+      managementMode = true;
+      sessionStorage.setItem('comp-mgmt-unlocked', '1');
+      closeModal();
+      showManagement();
+    } else {
+      unlockedDepts.add(pendingDept);
+      sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
+      closeModal();
+      showDept(pendingDept);
+    }
     return;
   }
 
@@ -2789,10 +2772,17 @@ async function verifyOtp() {
     });
     const data = await res.json();
     if (!res.ok) { _setModalError(data.error || 'Verification failed.'); return; }
-    unlockedDepts.add(pendingDept);
-    sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
-    closeModal();
-    showDept(pendingDept);
+    if (pendingDept === '__management__') {
+      managementMode = true;
+      sessionStorage.setItem('comp-mgmt-unlocked', '1');
+      closeModal();
+      showManagement();
+    } else {
+      unlockedDepts.add(pendingDept);
+      sessionStorage.setItem('comp-unlocked', JSON.stringify([...unlockedDepts]));
+      closeModal();
+      showDept(pendingDept);
+    }
   } catch {
     _setModalError('Network error. Please try again.');
   }
@@ -2881,8 +2871,12 @@ async function loadEmailPanel() {
   if (!body) return;
 
   try {
+    const allDepts = [
+      { id: '__management__', name: 'Management View' },
+      ...DEPARTMENTS,
+    ];
     const results = await Promise.all(
-      DEPARTMENTS.map(d =>
+      allDepts.map(d =>
         fetch(`/api/auth/manage-emails?dept=${d.id}`)
           .then(r => r.json())
           .then(data => ({ id: d.id, name: d.name, emails: data.emails || [], alertEmail: data.alertEmail || '' }))
