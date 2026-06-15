@@ -309,7 +309,6 @@
     font-size: 10px;
     color: #57636d;
     margin-top: 6px;
-    text-transform: uppercase;
     letter-spacing: 0.6px;
     font-weight: 700;
   }
@@ -2619,7 +2618,7 @@ function renderLanding() {
         </div>
         <div class="dept-icon"><i data-lucide="${d.icon}"></i></div>
         <div class="dept-name">${d.name}</div>
-        <div class="dept-count">${s.total} compliance${s.total === 1 ? '' : 's'}</div>
+        <div class="dept-count">${s.total} Compliance${s.total === 1 ? '' : 's'}</div>
       </div>`;
   }).join('');
   lucide.createIcons();
