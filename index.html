@@ -90,8 +90,8 @@
   .drawer {
     position: fixed;
     top: 0; right: 0; bottom: 0;
-    width: 460px;
-    max-width: 94vw;
+    width: 920px;
+    max-width: 96vw;
     background: #fff;
     z-index: 201;
     box-shadow: -4px 0 24px rgba(0,0,0,0.2);
@@ -3452,12 +3452,31 @@ function renderWhatsNewDrawer() {
   if (sub) {
     sub.textContent = `${pending.length} auto-discovered compliance${pending.length === 1 ? '' : 's'} · ${news.length} news item${news.length === 1 ? '' : 's'}`;
   }
-  let html = '';
+
+  const footer = (typeof LAST_REFRESH !== 'undefined' && LAST_REFRESH)
+    ? `<div style="margin-top:14px;font-size:10px;color:#6b7680;text-align:center;border-top:1px solid #eaedef;padding-top:8px;">Last refresh: ${LAST_REFRESH}</div>`
+    : '';
+
+  if (pending.length === 0 && news.length === 0) {
+    document.getElementById('news-body').innerHTML =
+      `<p style="color:#6b7680;padding:20px 0;text-align:center;">No new items yet. Auto-refreshes every Monday and Thursday.</p>${footer}`;
+    lucide.createIcons();
+    return;
+  }
+
+  // --- Left column: Auto-discovered compliances ---
+  let compCol = `
+    <div style="border-right:1px solid #eaedef;padding-right:20px;display:flex;flex-direction:column;">
+      <h4 style="font-family:'Fraunces',serif;margin:0 0 12px;font-size:14px;color:#0f2a1e;display:flex;align-items:center;gap:6px;">
+        <i data-lucide="zap" style="width:13px;height:13px;color:#d97706;flex-shrink:0;"></i>
+        Auto-discovered Compliances
+        <span style="margin-left:auto;font-size:10px;font-weight:700;background:#fef3e2;color:#d97706;border-radius:10px;padding:1px 8px;">${pending.length}</span>
+      </h4>`;
+
   if (pending.length > 0) {
-    html += `<h4 style="font-family:'Fraunces',serif;margin:0 0 10px;font-size:14px;color:#0f2a1e;">Auto-discovered compliances · needs your review</h4>`;
     pending.forEach(c => {
       const dept = DEPARTMENTS.find(d => d.id === c.dept);
-      html += `
+      compCol += `
         <div class="news-card likely-compliance">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div class="nc-date" style="flex:1;">${c.discoveredOn ? new Date(c.discoveredOn).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : 'Recently'}
@@ -3474,12 +3493,25 @@ function renderWhatsNewDrawer() {
           </div>
         </div>`;
     });
-    html += `<div style="height:18px;"></div>`;
+  } else {
+    compCol += `<div style="flex:1;display:flex;align-items:center;justify-content:center;">
+      <p style="color:#8a929a;font-size:12.5px;text-align:center;padding:32px 0;">No auto-discovered compliances yet.</p>
+    </div>`;
   }
+  compCol += `</div>`;
+
+  // --- Right column: Regulatory news & signals ---
+  let newsCol = `
+    <div style="display:flex;flex-direction:column;">
+      <h4 style="font-family:'Fraunces',serif;margin:0 0 12px;font-size:14px;color:#0f2a1e;display:flex;align-items:center;gap:6px;">
+        <i data-lucide="newspaper" style="width:13px;height:13px;color:#2a8f5e;flex-shrink:0;"></i>
+        Regulatory News &amp; Signals
+        <span style="margin-left:auto;font-size:10px;font-weight:700;background:#eef5f1;color:#2a8f5e;border-radius:10px;padding:1px 8px;">${news.length}</span>
+      </h4>`;
+
   if (news.length > 0) {
-    html += `<h4 style="font-family:'Fraunces',serif;margin:0 0 10px;font-size:14px;color:#0f2a1e;">Regulatory news &amp; signals</h4>`;
     [...news].sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(n => {
-      html += `
+      newsCol += `
         <div class="news-card ${n.regulatory ? 'regulatory' : ''}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div class="nc-date" style="flex:1;">${new Date(n.date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -3492,14 +3524,15 @@ function renderWhatsNewDrawer() {
           </div>
         </div>`;
     });
+  } else {
+    newsCol += `<div style="flex:1;display:flex;align-items:center;justify-content:center;">
+      <p style="color:#8a929a;font-size:12.5px;text-align:center;padding:32px 0;">No news items yet.</p>
+    </div>`;
   }
-  if (pending.length === 0 && news.length === 0) {
-    html = `<p style="color:#6b7680;padding:20px 0;text-align:center;">No new items yet. Auto-refreshes every Monday and Thursday.</p>`;
-  }
-  if (typeof LAST_REFRESH !== 'undefined' && LAST_REFRESH) {
-    html += `<div style="margin-top:14px;font-size:10px;color:#6b7680;text-align:center;border-top:1px solid #eaedef;padding-top:8px;">Last refresh: ${LAST_REFRESH}</div>`;
-  }
-  document.getElementById('news-body').innerHTML = html;
+  newsCol += `</div>`;
+
+  document.getElementById('news-body').innerHTML =
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">${compCol}${newsCol}</div>${footer}`;
   lucide.createIcons();
 }
 
