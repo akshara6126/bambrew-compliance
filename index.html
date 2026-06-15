@@ -2479,20 +2479,24 @@ function downloadAllExcel() {
 }
 
 async function _syncDeptToGSheet(deptId) {
-  const webhook = (_gsheetConfig[deptId] || {}).webhook;
+  // deptId may be a dept id like 'cs', or '__management__' for all-dept export
+  const configKey = deptId || '__management__';
+  const webhook = (_gsheetConfig[configKey] || {}).webhook;
   if (!webhook) return;
   const dept = DEPARTMENTS.find(d => d.id === deptId);
+  const rowDeptId = deptId === '__management__' ? null : deptId;
   await fetch('/api/gsheet-sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dept: deptId, deptName: dept ? dept.name : deptId, rows: _buildRows(deptId) }),
+    body: JSON.stringify({ dept: configKey, deptName: dept ? dept.name : 'All Departments', rows: _buildRows(rowDeptId) }),
   });
 }
 
 async function syncAllGSheets() {
-  const depts = DEPARTMENTS.filter(d => (_gsheetConfig[d.id] || {}).webhook);
+  const allKeys = ['__management__', ...DEPARTMENTS.map(d => d.id)];
+  const depts = allKeys.filter(id => (_gsheetConfig[id] || {}).webhook);
   if (!depts.length) { alert('No departments have a webhook URL configured yet.'); return; }
-  await Promise.all(depts.map(d => _syncDeptToGSheet(d.id).catch(() => {})));
+  await Promise.all(depts.map(id => _syncDeptToGSheet(id).catch(() => {})));
   const msg = document.getElementById('gsheet-sync-msg');
   if (msg) { msg.textContent = `Synced ${depts.length} department(s) — ${new Date().toLocaleTimeString('en-IN')}`; setTimeout(() => { msg.textContent = ''; }, 4000); }
 }
@@ -2667,7 +2671,7 @@ async function testGSheetSync(deptId) {
   const msg = document.getElementById(`gsheet-msg-${deptId}`);
   if (msg) msg.textContent = 'Syncing...';
   try {
-    await _syncDeptToGSheet(deptId === '__management__' ? null : deptId);
+    await _syncDeptToGSheet(deptId);
     if (msg) { msg.textContent = 'Sync successful!'; setTimeout(() => { msg.textContent = ''; }, 3000); }
   } catch {
     if (msg) { msg.style.color = '#c0392b'; msg.textContent = 'Sync failed. Check webhook URL.'; setTimeout(() => { msg.textContent = ''; msg.style.color = '#2a8f5e'; }, 4000); }
