@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; min-height: 100%; }
@@ -1016,7 +1017,19 @@
           <div class="dept-meta" id="dept-meta"></div>
         </div>
       </div>
-      <button class="add-btn" id="add-btn" onclick="openAddCompliance()">+ Add Compliance</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <a id="open-sheet-btn" target="_blank" rel="noopener"
+          style="display:none;background:#1a73e8;color:#fff;border:0;padding:8px 14px;border-radius:6px;font-weight:700;font-size:12px;font-family:inherit;cursor:pointer;text-decoration:none;align-items:center;gap:5px;">
+          <i data-lucide="external-link" style="width:12px;height:12px;"></i> Open in Sheets
+        </a>
+        <button id="dept-excel-btn" onclick="downloadDeptExcel()" style="display:none;background:#195c30;color:#fff;border:0;padding:8px 14px;border-radius:6px;font-weight:700;font-size:12px;font-family:inherit;cursor:pointer;align-items:center;gap:5px;">
+          <i data-lucide="download" style="width:12px;height:12px;"></i> Excel
+        </button>
+        <button id="all-excel-btn" onclick="downloadAllExcel()" style="display:none;background:#195c30;color:#fff;border:0;padding:8px 14px;border-radius:6px;font-weight:700;font-size:12px;font-family:inherit;cursor:pointer;align-items:center;gap:5px;">
+          <i data-lucide="download" style="width:12px;height:12px;"></i> Download All
+        </button>
+        <button class="add-btn" id="add-btn" onclick="openAddCompliance()">+ Add Compliance</button>
+      </div>
     </div>
 
     <!-- Type filter toggle (Statutory / Internal / All) -->
@@ -2393,8 +2406,271 @@ async function syncStatusToServer() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ state: { statusMap, userCompliances, priorityMap, remarksMap, ownerOverrideMap, pocOverrideMap, dismissedAutoIds } }),
     });
+    // Fire-and-forget GSheet sync for the dept currently being viewed
+    if (currentDeptId && (_gsheetConfig[currentDeptId] || {}).webhook) {
+      _syncDeptToGSheet(currentDeptId).catch(() => {});
+    }
   } catch (e) {
     console.warn('Shared compliance state save failed (changes stayed in localStorage):', e);
+  }
+}
+
+// ============================================================
+// EXCEL + GOOGLE SHEETS EXPORT
+// ============================================================
+let _gsheetConfig = {}; // dept → { link, webhook }
+
+async function loadGSheetConfig() {
+  try {
+    const r = await fetch('/api/gsheet-url');
+    if (r.ok) _gsheetConfig = await r.json();
+  } catch {}
+}
+
+function _buildRows(deptId) {
+  const items = deptId
+    ? allCompliances().filter(c => c.dept === deptId)
+    : allCompliances();
+  const header = ['#', 'Status', 'Priority', 'Description', 'Statutory Reference',
+                  'Frequency', 'Due Dates', 'Process Owner', 'Current POC', 'Function', 'Remarks', 'Info'];
+  const rows = items.map((c, i) => [
+    c.sNo || i + 1,
+    getStatus(c),
+    priorityMap[compId(c)] || c.priority || 'Medium',
+    c.description || '',
+    c.statutoryRef || '',
+    c.frequency || '',
+    c.dueDates || c.dueDateFor || '',
+    ownerOverrideMap[compId(c)] || c.processOwner || '',
+    pocOverrideMap[compId(c)] || c.currentPOC || '',
+    c.function || '',
+    remarksMap[compId(c)] || '',
+    c.type || '',
+  ]);
+  return [header, ...rows];
+}
+
+function _applyXlsxStyle(ws, numCols) {
+  ws['!cols'] = Array.from({ length: numCols }, (_, i) =>
+    ({ wch: [4, 12, 10, 44, 30, 12, 26, 22, 22, 20, 28, 12][i] || 16 })
+  );
+}
+
+function downloadDeptExcel() {
+  const dept = DEPARTMENTS.find(d => d.id === currentDeptId);
+  if (!dept) return;
+  const rows = _buildRows(currentDeptId);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  _applyXlsxStyle(ws, rows[0].length);
+  XLSX.utils.book_append_sheet(wb, ws, dept.name.slice(0, 31));
+  XLSX.writeFile(wb, `${dept.name}_Compliance_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function downloadAllExcel() {
+  const wb = XLSX.utils.book_new();
+  DEPARTMENTS.forEach(dept => {
+    const rows = _buildRows(dept.id);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    _applyXlsxStyle(ws, rows[0].length);
+    XLSX.utils.book_append_sheet(wb, ws, dept.name.slice(0, 31));
+  });
+  XLSX.writeFile(wb, `Bambrew_All_Compliance_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+async function _syncDeptToGSheet(deptId) {
+  const webhook = (_gsheetConfig[deptId] || {}).webhook;
+  if (!webhook) return;
+  const dept = DEPARTMENTS.find(d => d.id === deptId);
+  await fetch('/api/gsheet-sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dept: deptId, deptName: dept ? dept.name : deptId, rows: _buildRows(deptId) }),
+  });
+}
+
+async function syncAllGSheets() {
+  const depts = DEPARTMENTS.filter(d => (_gsheetConfig[d.id] || {}).webhook);
+  if (!depts.length) { alert('No departments have a webhook URL configured yet.'); return; }
+  await Promise.all(depts.map(d => _syncDeptToGSheet(d.id).catch(() => {})));
+  const msg = document.getElementById('gsheet-sync-msg');
+  if (msg) { msg.textContent = `Synced ${depts.length} department(s) — ${new Date().toLocaleTimeString('en-IN')}`; setTimeout(() => { msg.textContent = ''; }, 4000); }
+}
+
+function openAppsScriptModal() {
+  const code = `// Paste this into your Google Sheet's Apps Script editor
+// Extensions → Apps Script → paste → Save → Deploy → Web App
+// (Execute as: Me · Who can access: Anyone)
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetName = payload.deptName || payload.dept || 'Compliance';
+    let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+    sheet.clearContents();
+    sheet.clearFormats();
+
+    const rows = payload.rows;
+    sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+
+    // Header formatting
+    const hdr = sheet.getRange(1, 1, 1, rows[0].length);
+    hdr.setBackground('#0f2a1e').setFontColor('#ffffff')
+       .setFontWeight('bold').setFontSize(10);
+
+    // Status colour coding (column B)
+    for (let r = 2; r <= rows.length; r++) {
+      const cell = sheet.getRange(r, 2);
+      const val  = (rows[r - 1][1] || '').toLowerCase();
+      if      (val === 'completed')    cell.setBackground('#d4edda');
+      else if (val === 'in-progress')  cell.setBackground('#fff3cd');
+      else if (val === 'overdue')      cell.setBackground('#f8d7da');
+      else                             cell.setBackground('#ffffff');
+    }
+
+    sheet.autoResizeColumns(1, rows[0].length);
+    const last = sheet.getLastRow() + 2;
+    sheet.getRange(last, 1)
+         .setValue('Last synced from Bambrew Dashboard: ' + new Date().toLocaleString())
+         .setFontColor('#888888').setFontSize(9);
+    SpreadsheetApp.flush();
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: true, rows: rows.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+
+  _modalBody().innerHTML = `
+    <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;color:#0f2a1e;">Google Apps Script Setup</h3>
+    <p style="margin:0 0 14px;font-size:12.5px;color:#57636d;line-height:1.6;">
+      1. Open your Google Sheet · <b>Extensions → Apps Script</b><br>
+      2. Paste the code below · click <b>Save</b><br>
+      3. Click <b>Deploy → New deployment → Web App</b><br>
+      4. Set <i>Execute as</i>: <b>Me</b> · <i>Who can access</i>: <b>Anyone</b><br>
+      5. Copy the deployment URL and paste it as the <b>Webhook URL</b> for this department
+    </p>
+    <div style="position:relative;">
+      <pre id="apps-script-code" style="background:#f4f6f8;border:1px solid #e0e4e8;border-radius:6px;padding:14px;font-size:11px;overflow-x:auto;max-height:340px;line-height:1.5;white-space:pre;">${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('apps-script-code').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy code'},1500)})"
+        style="position:absolute;top:8px;right:8px;background:#2a8f5e;color:#fff;border:0;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Copy code</button>
+    </div>
+    <div style="margin-top:14px;text-align:right;">
+      <button class="btn-secondary" onclick="closeModal()">Close</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+// Google Sheets management panel
+function renderGSheetPanel() {
+  const existing = document.getElementById('gsheet-panel');
+  if (existing) existing.remove();
+  const container = document.getElementById('dept-view');
+  const panel = document.createElement('div');
+  panel.id = 'gsheet-panel';
+  panel.style.cssText = 'margin:24px auto 0;max-width:900px;padding:0 24px 48px;';
+  panel.innerHTML = `
+    <div style="border:1px solid #e6e8eb;border-radius:10px;overflow:hidden;">
+      <div style="padding:18px 22px;background:#f8f9fa;border-bottom:1px solid #e6e8eb;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <i data-lucide="table-2" style="width:16px;height:16px;color:#1a73e8;"></i>
+        <span style="font-size:14px;font-weight:700;color:#0f2a1e;">Google Sheets Integration</span>
+        <span style="font-size:12px;color:#8a929a;">Connect each department to a live Google Sheet</span>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <span id="gsheet-sync-msg" style="font-size:11px;color:#2a8f5e;font-weight:600;"></span>
+          <button onclick="syncAllGSheets()"
+            style="background:#1a73e8;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;">
+            <i data-lucide="refresh-cw" style="width:11px;height:11px;"></i> Sync All Now
+          </button>
+          <button onclick="openAppsScriptModal()"
+            style="background:#0f2a1e;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;">
+            <i data-lucide="code-2" style="width:11px;height:11px;"></i> View Setup Code
+          </button>
+        </div>
+      </div>
+      <div id="gsheet-panel-body" style="padding:20px 22px;">
+        <p style="color:#8a929a;font-size:13px;">Loading...</p>
+      </div>
+    </div>`;
+  container.appendChild(panel);
+  lucide.createIcons();
+  loadGSheetPanel();
+}
+
+async function loadGSheetPanel() {
+  const body = document.getElementById('gsheet-panel-body');
+  if (!body) return;
+  try {
+    const r = await fetch('/api/gsheet-url');
+    if (r.ok) _gsheetConfig = await r.json();
+    const allDepts = [{ id: '__management__', name: 'Management View' }, ...DEPARTMENTS];
+    body.innerHTML = allDepts.map(d => {
+      const cfg = _gsheetConfig[d.id] || {};
+      return `
+        <div style="border:1px solid #e6e8eb;border-radius:8px;margin-bottom:14px;padding:14px 16px;">
+          <div style="font-size:13px;font-weight:700;color:#0f2a1e;margin-bottom:12px;">${d.name}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label style="font-size:10.5px;color:#57636d;font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Sheet URL <span style="font-weight:400;text-transform:none;">(opens "Open in Sheets" button)</span></label>
+              <div style="display:flex;gap:6px;">
+                <input id="gsheet-link-${d.id}" type="url" placeholder="https://docs.google.com/spreadsheets/d/..."
+                  value="${cfg.link || ''}"
+                  style="flex:1;font-size:12px;padding:7px 10px;border:1px solid #d0d4d8;border-radius:6px;" />
+                <button onclick="saveGSheetConfig('${d.id}')"
+                  style="background:#0f2a1e;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">Save</button>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:10.5px;color:#57636d;font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Webhook URL <span style="font-weight:400;text-transform:none;">(Apps Script deployment URL for auto-sync)</span></label>
+              <div style="display:flex;gap:6px;">
+                <input id="gsheet-webhook-${d.id}" type="url" placeholder="https://script.google.com/macros/s/..."
+                  value="${cfg.webhook || ''}"
+                  style="flex:1;font-size:12px;padding:7px 10px;border:1px solid #d0d4d8;border-radius:6px;" />
+                <button onclick="testGSheetSync('${d.id}')"
+                  style="background:#2a8f5e;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;" title="Save + test sync now">Test</button>
+              </div>
+            </div>
+          </div>
+          <div id="gsheet-msg-${d.id}" style="font-size:11px;color:#2a8f5e;margin-top:6px;min-height:14px;"></div>
+        </div>`;
+    }).join('');
+  } catch {
+    body.innerHTML = '<p style="color:#c0392b;font-size:13px;">Failed to load Google Sheets config.</p>';
+  }
+}
+
+async function saveGSheetConfig(deptId) {
+  const link    = (document.getElementById(`gsheet-link-${deptId}`) || {}).value || '';
+  const webhook = (document.getElementById(`gsheet-webhook-${deptId}`) || {}).value || '';
+  await fetch('/api/gsheet-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dept: deptId, link, webhook }),
+  });
+  _gsheetConfig[deptId] = { link, webhook };
+  const msg = document.getElementById(`gsheet-msg-${deptId}`);
+  if (msg) { msg.textContent = 'Saved.'; setTimeout(() => { msg.textContent = ''; }, 2000); }
+}
+
+async function testGSheetSync(deptId) {
+  await saveGSheetConfig(deptId);
+  const webhook = (_gsheetConfig[deptId] || {}).webhook;
+  if (!webhook) {
+    const msg = document.getElementById(`gsheet-msg-${deptId}`);
+    if (msg) { msg.style.color = '#c0392b'; msg.textContent = 'Enter a webhook URL first.'; setTimeout(() => { msg.textContent = ''; msg.style.color = '#2a8f5e'; }, 3000); }
+    return;
+  }
+  const msg = document.getElementById(`gsheet-msg-${deptId}`);
+  if (msg) msg.textContent = 'Syncing...';
+  try {
+    await _syncDeptToGSheet(deptId === '__management__' ? null : deptId);
+    if (msg) { msg.textContent = 'Sync successful!'; setTimeout(() => { msg.textContent = ''; }, 3000); }
+  } catch {
+    if (msg) { msg.style.color = '#c0392b'; msg.textContent = 'Sync failed. Check webhook URL.'; setTimeout(() => { msg.textContent = ''; msg.style.color = '#2a8f5e'; }, 4000); }
   }
 }
 
@@ -2812,6 +3088,18 @@ function showDept(id) {
     `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
   document.getElementById('add-btn').style.display = 'inline-block';
   document.getElementById('add-btn').dataset.deptId = id;
+  // export buttons — dept view
+  const deptExcelBtn = document.getElementById('dept-excel-btn');
+  const allExcelBtn  = document.getElementById('all-excel-btn');
+  const openSheetBtn = document.getElementById('open-sheet-btn');
+  if (deptExcelBtn) { deptExcelBtn.style.display = 'inline-flex'; }
+  if (allExcelBtn)  { allExcelBtn.style.display  = 'none'; }
+  if (openSheetBtn) {
+    const url = (_gsheetConfig[id] || {}).link || '';
+    openSheetBtn.href         = url;
+    openSheetBtn.style.display = url ? 'inline-flex' : 'none';
+  }
+  lucide.createIcons();
   // sync type-filter button visual state
   document.querySelectorAll('.type-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.type === typeFilter);
@@ -2833,11 +3121,20 @@ function showManagement() {
   document.getElementById('dept-meta').textContent =
     `${allCompliances().length} compliance items across ${DEPARTMENTS.length} departments`;
   document.getElementById('add-btn').style.display = 'none';
+  // export buttons — management view
+  const deptExcelBtn2 = document.getElementById('dept-excel-btn');
+  const allExcelBtn2  = document.getElementById('all-excel-btn');
+  const openSheetBtn2 = document.getElementById('open-sheet-btn');
+  if (deptExcelBtn2) { deptExcelBtn2.style.display = 'none'; }
+  if (allExcelBtn2)  { allExcelBtn2.style.display  = 'inline-flex'; }
+  if (openSheetBtn2) { openSheetBtn2.style.display  = 'none'; }
+  lucide.createIcons();
   const all = allCompliances();
   const typeFiltered = typeFilter === 'all' ? all : all.filter(c => c.type === typeFilter);
   renderStats(typeFiltered);
   renderTable(all, true);
   renderEmailAccessPanel();
+  renderGSheetPanel();
 }
 
 // === Email Access Panel (management view only) ===
@@ -3635,7 +3932,8 @@ window.addEventListener('popstate', handleRoute);
 // Boot: load shared status from Vercel KV, then route to current URL
 async function bootstrap() {
   await loadStatusFromServer();
-  loadNewsFromServer(); // non-blocking — badge updates when ready
+  loadNewsFromServer();  // non-blocking — badge updates when ready
+  loadGSheetConfig();    // non-blocking — needed for "Open in Sheets" button
   history.replaceState({ view: 'initial' }, '', window.location.pathname);
   handleRoute();
   lucide.createIcons(); // activate static HTML icons (topbar, type filter)
