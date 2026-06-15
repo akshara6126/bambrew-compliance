@@ -2436,7 +2436,7 @@ function _buildRows(deptId) {
   const rows = items.map((c, i) => [
     c.sNo || i + 1,
     getStatus(c),
-    priorityMap[compId(c)] || c.priority || 'Medium',
+    priorityLabel(getPriority(c)),
     c.description || '',
     c.statutoryRef || '',
     c.frequency || '',
