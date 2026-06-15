@@ -2441,8 +2441,8 @@ function _buildRows(deptId) {
     c.statutoryRef || '',
     c.frequency || '',
     c.dueDates || c.dueDateFor || '',
-    ownerOverrideMap[compId(c)] || c.processOwner || '',
-    pocOverrideMap[compId(c)] || c.currentPOC || '',
+    ownerOverrideMap[compId(c)] || '-',
+    pocOverrideMap[compId(c)] || '-',
     c.function || '',
     remarksMap[compId(c)] || '',
     c.type || '',
@@ -3577,19 +3577,17 @@ function renderTable(items, showDeptCol) {
         <td><span class="small"><b>${c.dueDates}</b><br><span style="color:#8a929a;">${c.dueDateFor !== '' ? c.dueDateFor : ''}</span></span></td>
         <td>
           <input class="owner-input" type="text"
-                 placeholder="${(c.processOwner || '').replace(/"/g, '&quot;')}"
+                 placeholder="-"
                  value="${getOwnerName(c).replace(/"/g, '&quot;')}"
                  onchange="onChangeOwner('${compId(c)}', this.value)"
-                 onblur="onChangeOwner('${compId(c)}', this.value)"
-                 title="Suggested role: ${(c.processOwner || '').replace(/"/g, '&quot;')}. Type the actual person's name.">
+                 onblur="onChangeOwner('${compId(c)}', this.value)">
         </td>
         <td>
           <input class="owner-input" type="text"
-                 placeholder="${(c.currentPOC || '').replace(/"/g, '&quot;')}"
+                 placeholder="-"
                  value="${getPocName(c).replace(/"/g, '&quot;')}"
                  onchange="onChangePoc('${compId(c)}', this.value)"
-                 onblur="onChangePoc('${compId(c)}', this.value)"
-                 title="Suggested role: ${(c.currentPOC || '').replace(/"/g, '&quot;')}. Type the actual person's name.">
+                 onblur="onChangePoc('${compId(c)}', this.value)">
         </td>
         <td><span class="small">${c.function}</span></td>
         <td>
