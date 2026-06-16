@@ -884,6 +884,60 @@
     min-height: 16px;
     font-weight: 600;
   }
+
+  /* ---- Docs (attachment) ---- */
+  .attach-btn {
+    background: none; border: none; cursor: pointer; padding: 2px 4px;
+    color: #8a929a; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 600; vertical-align: middle; transition: color .15s;
+  }
+  .attach-btn:hover { color: #0f2a1e; }
+  .attach-btn.has-docs { color: #1a6636; }
+  .docs-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+    align-items: center; justify-content: center; z-index: 1000;
+  }
+  .docs-overlay.show { display: flex; }
+  .docs-modal {
+    background: #fff; border-radius: 12px; width: 520px; max-width: 95vw;
+    max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+  }
+  .docs-modal-header {
+    padding: 18px 22px 14px; border-bottom: 1px solid #eee;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .docs-modal-title { font-size: 14px; font-weight: 700; color: #0f2a1e; line-height: 1.35; }
+  .docs-modal-sub { font-size: 11.5px; color: #8a929a; margin-top: 3px; }
+  .docs-modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
+  .doc-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid #e6e8eb; border-radius: 8px; margin-bottom: 8px;
+    background: #fafbfc;
+  }
+  .doc-item-icon { color: #1a6636; flex-shrink: 0; }
+  .doc-item-name { font-size: 12.5px; font-weight: 600; color: #0f2a1e; flex: 1; word-break: break-all; }
+  .doc-item-meta { font-size: 11px; color: #8a929a; white-space: nowrap; }
+  .doc-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .doc-dl-btn, .doc-del-btn {
+    border: none; border-radius: 5px; cursor: pointer; padding: 4px 8px;
+    font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;
+  }
+  .doc-dl-btn { background: #e8f4ec; color: #1a6636; }
+  .doc-dl-btn:hover { background: #d0eada; }
+  .doc-del-btn { background: #fde8e8; color: #b03030; }
+  .doc-del-btn:hover { background: #f5c6c6; }
+  .doc-upload-zone {
+    border: 2px dashed #c8d0d8; border-radius: 10px; padding: 28px; text-align: center;
+    cursor: pointer; transition: border-color .2s, background .2s; margin-top: 4px;
+  }
+  .doc-upload-zone:hover, .doc-upload-zone.drag-over { border-color: #1a6636; background: #f0f8f3; }
+  .doc-upload-zone p { margin: 6px 0 0; font-size: 12.5px; color: #57636d; }
+  .doc-upload-zone .zone-hint { font-size: 11px; color: #a0a8b0; margin-top: 3px; }
+  .doc-upload-progress {
+    display: none; margin-top: 10px; font-size: 12px; color: #1a6636; font-weight: 600;
+    padding: 8px 12px; background: #e8f4ec; border-radius: 6px;
+  }
 </style>
 </head>
 <body>
@@ -1079,6 +1133,12 @@
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" id="modal-body">
     <!-- injected by JS -->
+  </div>
+</div>
+
+<div class="docs-overlay" id="docs-overlay" onclick="if(event.target===this)closeDocsModal()">
+  <div class="docs-modal" id="docs-modal-inner">
+    <!-- injected by openDocsModal() -->
   </div>
 </div>
 
@@ -3698,8 +3758,9 @@ function renderTable(items, showDeptCol) {
                  onblur="onChangeRemarks('${compId(c)}', this.value)"
                  title="Anyone on the team can add remarks here. Saves to all devices automatically.">
         </td>
-        <td style="text-align:center;">
+        <td style="text-align:center; white-space:nowrap;">
           <a href="${infoUrl}" target="_blank" class="info-link" title="Learn more about this compliance"><i data-lucide="external-link" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>Info</a>
+          <button class="attach-btn" data-cid="${compId(c)}" onclick="openDocsModal('${compId(c)}')" title="Attachments"><i data-lucide="paperclip" style="width:11px;height:11px;"></i></button>
         </td>
       </tr>`);
   });
@@ -4028,6 +4089,160 @@ function handleRoute() {
 }
 
 window.addEventListener('popstate', handleRoute);
+
+// ============================================================
+// DOCUMENT ATTACHMENTS
+// ============================================================
+let docsCache = {}; // compId → [{name, url, size, uploadedAt}]
+let _currentDocsId = null;
+
+function _fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function _docIcon(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (['pdf'].includes(ext)) return 'file-text';
+  if (['xls','xlsx','csv'].includes(ext)) return 'file-spreadsheet';
+  if (['doc','docx'].includes(ext)) return 'file-type-2';
+  if (['png','jpg','jpeg','gif','webp'].includes(ext)) return 'image';
+  return 'file';
+}
+
+async function openDocsModal(cId) {
+  _currentDocsId = cId;
+  const overlay = document.getElementById('docs-overlay');
+  overlay.classList.add('show');
+  _renderDocsModal(cId, null); // loading state
+  const docs = await _loadDocs(cId);
+  _renderDocsModal(cId, docs);
+}
+
+function closeDocsModal() {
+  document.getElementById('docs-overlay').classList.remove('show');
+  _currentDocsId = null;
+}
+
+async function _loadDocs(cId) {
+  if (docsCache[cId]) return docsCache[cId];
+  try {
+    const r = await fetch(`/api/docs?compId=${encodeURIComponent(cId)}`);
+    const docs = r.ok ? await r.json() : [];
+    docsCache[cId] = docs;
+    return docs;
+  } catch { return []; }
+}
+
+function _renderDocsModal(cId, docs) {
+  const c = allCompliances().find(x => compId(x) === cId);
+  const dept = c ? (DEPARTMENTS.find(d => d.id === c.dept) || {}).name : '';
+  const inner = document.getElementById('docs-modal-inner');
+
+  const docListHtml = docs === null
+    ? `<div style="text-align:center;padding:30px;color:#8a929a;font-size:13px;">Loading…</div>`
+    : docs.length === 0
+      ? `<div style="text-align:center;padding:20px 0 10px;color:#8a929a;font-size:13px;">No documents attached yet.</div>`
+      : docs.map((d, i) => `
+          <div class="doc-item">
+            <i data-lucide="${_docIcon(d.name)}" style="width:18px;height:18px;" class="doc-item-icon"></i>
+            <div style="flex:1;min-width:0;">
+              <div class="doc-item-name">${d.name}</div>
+              <div class="doc-item-meta">${_fmtBytes(d.size || 0)} &middot; ${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('en-IN') : ''}</div>
+            </div>
+            <div class="doc-item-actions">
+              <a href="${d.url}" target="_blank" rel="noopener" class="doc-dl-btn"><i data-lucide="download" style="width:11px;height:11px;"></i> Download</a>
+              <button class="doc-del-btn" onclick="_deleteDoc('${cId}','${d.url.replace(/'/g, "\\'")}')"><i data-lucide="trash-2" style="width:11px;height:11px;"></i></button>
+            </div>
+          </div>`).join('');
+
+  inner.innerHTML = `
+    <div class="docs-modal-header">
+      <div>
+        <div class="docs-modal-title">${c ? c.description : cId}</div>
+        <div class="docs-modal-sub">${dept}${c ? ` · ${c.frequency}` : ''}</div>
+      </div>
+      <button onclick="closeDocsModal()" style="background:none;border:none;cursor:pointer;color:#8a929a;padding:4px;border-radius:4px;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+    </div>
+    <div class="docs-modal-body">
+      <div id="docs-list">${docListHtml}</div>
+      <div class="doc-upload-zone" id="doc-upload-zone"
+           onclick="document.getElementById('doc-file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="_handleDocDrop(event,'${cId}')">
+        <i data-lucide="upload-cloud" style="width:28px;height:28px;color:#1a6636;"></i>
+        <p>Click to upload or drag &amp; drop</p>
+        <p class="zone-hint">PDF, Word, Excel, Images · Max 4 MB</p>
+      </div>
+      <div class="doc-upload-progress" id="doc-upload-progress">Uploading…</div>
+      <input type="file" id="doc-file-input" style="display:none"
+             accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.webp"
+             onchange="_handleDocFile(event,'${cId}')">
+    </div>`;
+  lucide.createIcons();
+  _updateAttachBtn(cId, docs);
+}
+
+function _updateAttachBtn(cId, docs) {
+  if (!docs) return;
+  document.querySelectorAll(`.attach-btn[data-cid="${CSS.escape(cId)}"]`).forEach(btn => {
+    const count = docs.length;
+    btn.classList.toggle('has-docs', count > 0);
+    btn.innerHTML = `<i data-lucide="paperclip" style="width:11px;height:11px;"></i>${count > 0 ? ' ' + count : ''}`;
+    lucide.createIcons({ nodes: [btn] });
+  });
+}
+
+function _handleDocDrop(event, cId) {
+  event.preventDefault();
+  document.getElementById('doc-upload-zone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file) _uploadDocFile(cId, file);
+}
+
+function _handleDocFile(event, cId) {
+  const file = event.target.files[0];
+  if (file) _uploadDocFile(cId, file);
+  event.target.value = '';
+}
+
+async function _uploadDocFile(cId, file) {
+  const MAX = 4 * 1024 * 1024;
+  if (file.size > MAX) { alert('File is too large. Maximum size is 4 MB.'); return; }
+  const prog = document.getElementById('doc-upload-progress');
+  if (prog) { prog.style.display = 'block'; prog.textContent = `Uploading ${file.name}…`; }
+
+  try {
+    const buf = await file.arrayBuffer();
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ compId: cId, name: file.name, type: file.type, size: file.size, data: b64 }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Upload failed'); }
+    const { file: meta } = await res.json();
+    docsCache[cId] = [...(docsCache[cId] || []), meta];
+    _renderDocsModal(cId, docsCache[cId]);
+  } catch (err) {
+    if (prog) { prog.style.display = 'block'; prog.style.color = '#b03030'; prog.textContent = 'Upload failed: ' + err.message; }
+  }
+}
+
+async function _deleteDoc(cId, url) {
+  if (!confirm('Delete this document?')) return;
+  try {
+    await fetch('/api/docs', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ compId: cId, url }),
+    });
+    docsCache[cId] = (docsCache[cId] || []).filter(d => d.url !== url);
+    _renderDocsModal(cId, docsCache[cId]);
+  } catch { alert('Failed to delete. Please try again.'); }
+}
 
 // ============================================================
 // MISSED COMPLIANCE HISTORY
