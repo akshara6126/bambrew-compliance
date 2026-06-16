@@ -1037,6 +1037,7 @@
       <button class="type-filter-btn active" data-type="all"       onclick="setTypeFilter('all')"><i data-lucide="list" style="width:12px;height:12px;"></i> All</button>
       <button class="type-filter-btn"        data-type="statutory" onclick="setTypeFilter('statutory')"><i data-lucide="scale" style="width:12px;height:12px;"></i> Statutory only</button>
       <button class="type-filter-btn"        data-type="internal"  onclick="setTypeFilter('internal')"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Internal only</button>
+      <button class="type-filter-btn"        data-type="not-done"  onclick="setTypeFilter('not-done')" style="color:#b03030;border-color:#f1b3b3;"><i data-lucide="alert-circle" style="width:12px;height:12px;"></i> Not Done</button>
     </div>
 
     <!-- Search bar: visible in both dept view and management view -->
@@ -3129,9 +3130,9 @@ function showDept(id) {
     btn.classList.toggle('active', btn.dataset.type === typeFilter);
   });
 
-  const typeFiltered = typeFilter === 'all' ? items : items.filter(c => c.type === typeFilter);
+  const typeFiltered = typeFilter === 'all' ? items : typeFilter === 'not-done' ? items.filter(c => getStatus(c) !== 'completed') : items.filter(c => c.type === typeFilter);
   renderStats(typeFiltered);
-  renderTable(items, false);
+  renderTable(typeFiltered, false);
 }
 
 function showManagement() {
@@ -3158,9 +3159,9 @@ function showManagement() {
   }
   lucide.createIcons();
   const all = allCompliances();
-  const typeFiltered = typeFilter === 'all' ? all : all.filter(c => c.type === typeFilter);
+  const typeFiltered = typeFilter === 'all' ? all : typeFilter === 'not-done' ? all.filter(c => getStatus(c) !== 'completed') : all.filter(c => c.type === typeFilter);
   renderStats(typeFiltered);
-  renderTable(all, true);
+  renderTable(typeFiltered, true);
   renderEmailAccessPanel();
   renderGSheetPanel();
 }
@@ -3493,7 +3494,7 @@ function renderTable(items, showDeptCol) {
 
   // Apply type filter + search filter
   const filteredItems = items
-    .filter(c => typeFilter === 'all' ? true : c.type === typeFilter)
+    .filter(c => typeFilter === 'all' ? true : typeFilter === 'not-done' ? getStatus(c) !== 'completed' : c.type === typeFilter)
     .filter(matchesSearch);
 
   // Update search meta
