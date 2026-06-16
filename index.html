@@ -4382,76 +4382,140 @@ function _periodLabel(key) {
   return new Date(parseInt(y), parseInt(mo) - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-const _missedPeriodExpanded = new Set();
-function _toggleMissedPeriod(key) {
-  if (_missedPeriodExpanded.has(key)) _missedPeriodExpanded.delete(key);
-  else _missedPeriodExpanded.add(key);
+let _selectedMissedPeriod = null;
+const _missedDrillExpanded = new Set();
+
+function selectMissedPeriod(key) {
+  _selectedMissedPeriod = (_selectedMissedPeriod === key) ? null : key;
+  _missedDrillExpanded.clear();
   renderMissedHistory();
+}
+
+function _toggleMissedDrill(deptId) {
+  if (_missedDrillExpanded.has(deptId)) _missedDrillExpanded.delete(deptId);
+  else _missedDrillExpanded.add(deptId);
+  renderMissedHistory();
+}
+
+function _pastMonthKeys(n) {
+  const keys = [];
+  const now = new Date();
+  for (let i = n; i >= 1; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return keys;
 }
 
 function renderMissedHistory() {
   const panel = document.getElementById('missed-history-panel');
   if (!panel) return;
 
-  const entries = Object.entries(missedHistory)
-    .filter(([, items]) => items && items.length > 0)
-    .sort((a, b) => b[0].localeCompare(a[0]))
-    .slice(0, 24);
+  const months = _pastMonthKeys(12);
 
-  if (entries.length === 0) { panel.innerHTML = ''; return; }
+  const cells = months.map(key => {
+    const inHistory = key in missedHistory;
+    const items = missedHistory[key];
+    const count = inHistory ? (items || []).length : null;
+    const isSelected = _selectedMissedPeriod === key;
+    const [y, mo] = key.split('-');
+    const monthShort = new Date(parseInt(y), parseInt(mo) - 1, 1)
+      .toLocaleString('en-IN', { month: 'short' });
+    const yr = `'${String(y).slice(2)}`;
 
-  const rows = entries.map(([period, items]) => {
-    const expanded = _missedPeriodExpanded.has(period);
-    const byDept = {};
-    items.forEach(c => { if (!byDept[c.dept]) byDept[c.dept] = []; byDept[c.dept].push(c); });
-
-    const deptTags = Object.keys(byDept).map(deptId => {
-      const d = DEPARTMENTS.find(x => x.id === deptId);
-      return `<span style="font-size:10.5px;background:#f4f6f8;border:1px solid #e0e4e8;border-radius:4px;padding:2px 7px;color:#0f2a1e;">${d ? d.name : deptId} <b>${byDept[deptId].length}</b></span>`;
-    }).join(' ');
-
-    const expandedContent = expanded ? Object.entries(byDept).map(([deptId, cs]) => {
-      const d = DEPARTMENTS.find(x => x.id === deptId);
-      const deptName = d ? d.name : deptId;
-      const itemRows = cs.map(c => `
-        <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;gap:8px;padding:7px 16px 7px 52px;border-bottom:1px solid #f0f1f3;cursor:pointer;background:#fafbfc;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#fafbfc'">
-          <i data-lucide="circle-dot" style="width:9px;height:9px;color:#b03030;flex-shrink:0;"></i>
-          <span style="font-size:12px;color:#2d2d2d;flex:1;">${c.description}</span>
-          ${_freqPill(c.frequency || '')}
-        </div>`).join('');
-      return `
-        <div>
-          <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;gap:8px;padding:9px 16px 9px 32px;background:#f4f6f8;border-bottom:1px solid #e8ebee;cursor:pointer;" onmouseover="this.style.background='#eaf0ff'" onmouseout="this.style.background='#f4f6f8'">
-            <i data-lucide="folder" style="width:12px;height:12px;color:#57636d;"></i>
-            <span style="font-size:12px;font-weight:700;color:#0f2a1e;">${deptName}</span>
-            <span style="font-size:11px;color:#8a929a;">${cs.length} missed</span>
-            <span style="margin-left:auto;font-size:11px;color:#2a8f5e;font-weight:700;">View dept →</span>
-          </div>
-          ${itemRows}
-        </div>`;
-    }).join('') : '';
+    let bg, border, textColor, badge;
+    if (!inHistory) {
+      bg = '#f8f9fa'; border = '1px solid #e6e8eb'; textColor = '#b0b8c4';
+      badge = `<span style="font-size:10px;color:#c8d0d8;">no data</span>`;
+    } else if (count === 0) {
+      bg = '#eef5f1'; border = '1px solid #c0ddd0'; textColor = '#1a6636';
+      badge = `<span style="font-size:10px;color:#2a8f5e;font-weight:700;">✓ all done</span>`;
+    } else {
+      bg = isSelected ? '#fde8e8' : '#fff5f5';
+      border = isSelected ? '2px solid #b03030' : '1px solid #f1b3b3';
+      textColor = '#7a1f1f';
+      badge = `<span style="background:#b03030;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;">${count} missed</span>`;
+    }
 
     return `
-      <div>
-        <div onclick="_toggleMissedPeriod('${period}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #f0f1f3;cursor:pointer;user-select:none;transition:background .15s;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-          <span style="font-size:12px;font-weight:700;color:#7a1f1f;min-width:95px;">${_periodLabel(period)}</span>
-          <span style="background:#f8d7da;color:#842121;font-size:10.5px;font-weight:700;border-radius:10px;padding:2px 8px;white-space:nowrap;">${items.length} missed</span>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;flex:1;">${deptTags}</div>
-          <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" style="width:14px;height:14px;color:#8a929a;flex-shrink:0;"></i>
-        </div>
-        ${expandedContent}
+      <div onclick="${inHistory ? `selectMissedPeriod('${key}')` : ''}"
+           style="background:${bg};border:${border};border-radius:8px;padding:11px 10px;text-align:center;${inHistory ? 'cursor:pointer;' : ''}transition:all .15s;${isSelected ? 'box-shadow:0 0 0 3px #b0303030;' : ''}">
+        <div style="font-size:13px;font-weight:700;color:${textColor};">${monthShort} ${yr}</div>
+        <div style="margin-top:6px;">${badge}</div>
       </div>`;
   }).join('');
+
+  // Detail drilldown for selected month
+  let detailHtml = '';
+  if (_selectedMissedPeriod) {
+    const items = (missedHistory[_selectedMissedPeriod] || []);
+    const periodName = _periodLabel(_selectedMissedPeriod);
+
+    if (items.length === 0) {
+      detailHtml = `
+        <div style="border-top:1px solid #c0ddd0;padding:18px 20px;background:#eef5f1;display:flex;align-items:center;gap:8px;">
+          <i data-lucide="check-circle-2" style="width:14px;height:14px;color:#2a8f5e;flex-shrink:0;"></i>
+          <span style="font-size:13px;color:#0f2a1e;font-weight:600;">All compliances were completed in ${periodName}.</span>
+        </div>`;
+    } else {
+      const byDept = {};
+      items.forEach(c => { if (!byDept[c.dept]) byDept[c.dept] = []; byDept[c.dept].push(c); });
+
+      const deptRows = Object.entries(byDept)
+        .sort((a, b) => b[1].length - a[1].length)
+        .map(([deptId, cs]) => {
+          const d = DEPARTMENTS.find(x => x.id === deptId);
+          const deptName = d ? d.name : deptId;
+          const expanded = _missedDrillExpanded.has(deptId);
+
+          const itemRows = expanded ? cs.map(c => `
+            <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;gap:8px;padding:8px 16px 8px 52px;border-bottom:1px solid #f0f1f3;cursor:pointer;background:#fafbfc;" onmouseover="this.style.background='#f4f6ff'" onmouseout="this.style.background='#fafbfc'">
+              <i data-lucide="circle-dot" style="width:9px;height:9px;color:#b03030;flex-shrink:0;"></i>
+              <span style="font-size:12px;color:#2d2d2d;flex:1;">${c.description}</span>
+              ${_freqPill(c.frequency || '')}
+            </div>`).join('') : '';
+
+          return `
+            <div>
+              <div onclick="_toggleMissedDrill('${deptId}')" style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #f0f1f3;cursor:pointer;user-select:none;" onmouseover="this.style.background='#fef8f8'" onmouseout="this.style.background=''">
+                <span style="background:#b03030;color:#fff;font-size:10.5px;font-weight:700;border-radius:10px;padding:1px 8px;">${cs.length}</span>
+                <span style="font-size:13px;font-weight:600;color:#0f2a1e;flex:1;">${deptName}</span>
+                <span onclick="event.stopPropagation();enterDept('${deptId}')" style="font-size:11px;color:#2a8f5e;font-weight:700;cursor:pointer;">View dept →</span>
+                <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" style="width:14px;height:14px;color:#8a929a;"></i>
+              </div>
+              ${itemRows}
+            </div>`;
+        }).join('');
+
+      detailHtml = `
+        <div style="border-top:2px solid #f1b3b3;">
+          <div style="padding:10px 18px;background:#fff5f5;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <i data-lucide="alert-circle" style="width:13px;height:13px;color:#b03030;flex-shrink:0;"></i>
+            <span style="font-size:13px;font-weight:700;color:#7a1f1f;">${periodName} — ${items.length} missed</span>
+            <span style="font-size:11.5px;color:#8a929a;">Click department to expand · "View dept →" to open tracker</span>
+          </div>
+          <div style="background:#fff;">${deptRows}</div>
+        </div>`;
+    }
+  }
 
   panel.innerHTML = `
     <div style="margin:16px auto 40px;max-width:900px;padding:0 24px;">
       <div style="border:1px solid #e6e8eb;border-radius:10px;overflow:hidden;">
         <div style="padding:12px 18px;background:#f8f9fa;border-bottom:1px solid #e6e8eb;display:flex;align-items:center;gap:8px;">
-          <i data-lucide="history" style="width:14px;height:14px;color:#57636d;"></i>
-          <span style="font-size:13px;font-weight:700;color:#0f2a1e;">Missed Compliance History</span>
-          <span style="font-size:11.5px;color:#8a929a;">Click a period to expand</span>
+          <i data-lucide="calendar" style="width:14px;height:14px;color:#57636d;"></i>
+          <span style="font-size:13px;font-weight:700;color:#0f2a1e;">Missed Compliance Calendar</span>
+          <span style="font-size:11.5px;color:#8a929a;">Click any past month to see what was missed</span>
         </div>
-        <div style="background:#fff;">${rows}</div>
+        <div style="padding:16px 20px;background:#fff;">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            ${cells}
+          </div>
+          ${Object.keys(missedHistory).length === 0
+            ? '<div style="margin-top:12px;text-align:center;font-size:12px;color:#a0a8b0;">No history yet — records appear here at the end of each period.</div>'
+            : ''}
+        </div>
+        ${detailHtml}
       </div>
     </div>`;
   lucide.createIcons();
