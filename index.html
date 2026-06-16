@@ -4349,12 +4349,13 @@ async function _uploadOneDoc(cId, file) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       type: 'blob.generate-client-token',
-      payload: { pathname, callbackUrl },
-      tokenPayload: JSON.stringify({ compId: cId, name: file.name }),
+      payload: { pathname, callbackUrl, multipart: false },
     }),
   });
-  if (!tokenRes.ok) throw new Error('Could not get upload token');
-  const { clientToken, url } = await tokenRes.json();
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) throw new Error(tokenData.error || 'Could not get upload token');
+  const { clientToken, url } = tokenData;
+  if (!clientToken || !url) throw new Error('Invalid token response from server');
 
   // Step 2: upload directly to Vercel Blob (bypasses serverless function size limit)
   const uploadRes = await fetch(url, {
@@ -4362,10 +4363,13 @@ async function _uploadOneDoc(cId, file) {
     body: file,
     headers: {
       'authorization': `Bearer ${clientToken}`,
-      'x-content-type': file.type || 'application/octet-stream',
+      'content-type': file.type || 'application/octet-stream',
     },
   });
-  if (!uploadRes.ok) throw new Error('Upload to storage failed');
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text().catch(() => uploadRes.status);
+    throw new Error(`Storage upload failed (${uploadRes.status}): ${errText}`);
+  }
   const blob = await uploadRes.json();
 
   // Update local cache immediately (server callback also persists to KV)
