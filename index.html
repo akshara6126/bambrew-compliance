@@ -4271,10 +4271,10 @@ function _renderDocsModal(cId, docs) {
            ondrop="_handleDocDrop(event,'${cId}')">
         <i data-lucide="upload-cloud" style="width:28px;height:28px;color:#1a6636;"></i>
         <p>Click to upload or drag &amp; drop</p>
-        <p class="zone-hint">PDF, Word, Excel, Images · Max 4 MB</p>
+        <p class="zone-hint">PDF, Word, Excel, Images · Max 20 MB · Multiple files OK</p>
       </div>
-      <div class="doc-upload-progress" id="doc-upload-progress">Uploading…</div>
-      <input type="file" id="doc-file-input" style="display:none"
+      <div class="doc-upload-progress" id="doc-upload-progress"></div>
+      <input type="file" id="doc-file-input" style="display:none" multiple
              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.webp"
              onchange="_handleDocFile(event,'${cId}')">
     </div>`;
@@ -4295,42 +4295,82 @@ function _updateAttachBtn(cId, docs) {
 function _handleDocDrop(event, cId) {
   event.preventDefault();
   document.getElementById('doc-upload-zone').classList.remove('drag-over');
-  const file = event.dataTransfer.files[0];
-  if (file) _uploadDocFile(cId, file);
+  const files = [...event.dataTransfer.files];
+  if (files.length) _uploadDocFiles(cId, files);
 }
 
 function _handleDocFile(event, cId) {
-  const file = event.target.files[0];
-  if (file) _uploadDocFile(cId, file);
+  const files = [...event.target.files];
+  if (files.length) _uploadDocFiles(cId, files);
   event.target.value = '';
 }
 
-async function _uploadDocFile(cId, file) {
-  const MAX = 4 * 1024 * 1024;
-  if (file.size > MAX) { alert('File is too large. Maximum size is 4 MB.'); return; }
-  const prog = document.getElementById('doc-upload-progress');
-  if (prog) { prog.style.display = 'block'; prog.textContent = `Uploading ${file.name}…`; }
-
-  try {
-    const buf = await file.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += 8192) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-    }
-    const b64 = btoa(binary);
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ compId: cId, name: file.name, type: file.type, size: file.size, data: b64 }),
-    });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Upload failed'); }
-    const { file: meta } = await res.json();
-    docsCache[cId] = [...(docsCache[cId] || []), meta];
-    _renderDocsModal(cId, docsCache[cId]);
-  } catch (err) {
-    if (prog) { prog.style.display = 'block'; prog.style.color = '#b03030'; prog.textContent = 'Upload failed: ' + err.message; }
+async function _uploadDocFiles(cId, files) {
+  const MAX = 20 * 1024 * 1024;
+  const tooBig = files.filter(f => f.size > MAX);
+  if (tooBig.length) {
+    alert(`${tooBig.map(f => f.name).join(', ')} exceed the 20 MB limit and will be skipped.`);
+    files = files.filter(f => f.size <= MAX);
   }
+  if (!files.length) return;
+
+  const prog = document.getElementById('doc-upload-progress');
+  const setProgress = (msg, isError) => {
+    if (!prog) return;
+    prog.style.display = 'block';
+    prog.style.color = isError ? '#b03030' : '#1a6636';
+    prog.style.background = isError ? '#fde8e8' : '#e8f4ec';
+    prog.textContent = msg;
+  };
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const label = files.length > 1 ? `(${i + 1}/${files.length}) ` : '';
+    setProgress(`${label}Uploading ${file.name}…`);
+    try {
+      await _uploadOneDoc(cId, file);
+    } catch (err) {
+      setProgress(`${label}Failed: ${err.message}`, true);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  if (prog) prog.style.display = 'none';
+  _renderDocsModal(cId, docsCache[cId]);
+}
+
+async function _uploadOneDoc(cId, file) {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._\- ]/g, '_');
+  const pathname = `compliance-docs/${cId}/${Date.now()}-${safeName}`;
+  const callbackUrl = `${window.location.origin}/api/blob-token`;
+
+  // Step 1: get signed client token from our server
+  const tokenRes = await fetch('/api/blob-token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      type: 'blob.generate-client-token',
+      payload: { pathname, callbackUrl },
+      tokenPayload: JSON.stringify({ compId: cId, name: file.name }),
+    }),
+  });
+  if (!tokenRes.ok) throw new Error('Could not get upload token');
+  const { clientToken, url } = await tokenRes.json();
+
+  // Step 2: upload directly to Vercel Blob (bypasses serverless function size limit)
+  const uploadRes = await fetch(url, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'authorization': `Bearer ${clientToken}`,
+      'x-content-type': file.type || 'application/octet-stream',
+    },
+  });
+  if (!uploadRes.ok) throw new Error('Upload to storage failed');
+  const blob = await uploadRes.json();
+
+  // Update local cache immediately (server callback also persists to KV)
+  const meta = { name: file.name, url: blob.url, size: file.size, uploadedAt: new Date().toISOString() };
+  docsCache[cId] = [...(docsCache[cId] || []), meta];
 }
 
 async function _deleteDoc(cId, url) {
