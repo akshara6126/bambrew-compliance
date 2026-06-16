@@ -2963,6 +2963,24 @@ function deptStats(id) {
   return { total, done, pct, state };
 }
 
+const _missedDeptExpanded = new Set();
+function _toggleMissedDept(deptId) {
+  if (_missedDeptExpanded.has(deptId)) _missedDeptExpanded.delete(deptId);
+  else _missedDeptExpanded.add(deptId);
+  renderMissedPanel();
+}
+
+const _freqPillStyle = {
+  'Monthly':     'background:#dbeafe;color:#1e40af;',
+  'Quarterly':   'background:#ede9fe;color:#5b21b6;',
+  'Annual':      'background:#fef3c7;color:#92400e;',
+  'Event-based': 'background:#dcfce7;color:#166534;',
+};
+function _freqPill(f) {
+  const s = _freqPillStyle[f] || 'background:#f4f6f8;color:#57636d;';
+  return `<span style="font-size:10px;border-radius:4px;padding:1px 6px;font-weight:600;${s}">${f}</span>`;
+}
+
 function renderMissedPanel() {
   const panel = document.getElementById('missed-panel');
   if (!panel) return;
@@ -2973,11 +2991,8 @@ function renderMissedPanel() {
   const fy = now.getMonth() >= 3 ? now.getFullYear() + 1 : now.getFullYear();
   const periodLabel = `${monthLabel} · Q${q} · FY${fy - 1}-${String(fy).slice(2)}`;
 
-  // Collect all recurring compliances not done this period, grouped by dept
-  const RECURRING = ['Monthly', 'Quarterly', 'Annual'];
   const byDept = {};
   allCompliances().forEach(c => {
-    if (!RECURRING.includes(c.frequency)) return;
     if (getStatus(c) === 'completed') return;
     if (!byDept[c.dept]) byDept[c.dept] = [];
     byDept[c.dept].push(c);
@@ -2991,7 +3006,7 @@ function renderMissedPanel() {
       <div style="margin:28px auto;max-width:900px;padding:0 24px;">
         <div style="background:#eef5f1;border:1px solid #c0ddd0;border-radius:10px;padding:18px 22px;display:flex;align-items:center;gap:10px;">
           <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#2a8f5e;flex-shrink:0;"></i>
-          <span style="font-size:13px;font-weight:600;color:#0f2a1e;">All recurring compliances are done for the current period.</span>
+          <span style="font-size:13px;font-weight:600;color:#0f2a1e;">All compliances are done for the current period.</span>
         </div>
       </div>`;
     lucide.createIcons();
@@ -3001,18 +3016,32 @@ function renderMissedPanel() {
   const rows = deptEntries.map(([deptId, items]) => {
     const dept = DEPARTMENTS.find(d => d.id === deptId);
     const name = dept ? dept.name : deptId;
-    const freqBreakdown = { Monthly: 0, Quarterly: 0, Annual: 0 };
-    items.forEach(c => { if (freqBreakdown[c.frequency] !== undefined) freqBreakdown[c.frequency]++; });
-    const tags = Object.entries(freqBreakdown).filter(([, n]) => n > 0)
-      .map(([f, n]) => `<span style="font-size:10px;background:#f4f6f8;border:1px solid #e0e4e8;border-radius:4px;padding:1px 6px;color:#57636d;">${n} ${f}</span>`).join(' ');
+    const expanded = _missedDeptExpanded.has(deptId);
+    const freqCounts = {};
+    items.forEach(c => { freqCounts[c.frequency] = (freqCounts[c.frequency] || 0) + 1; });
+    const tags = Object.entries(freqCounts).map(([f, n]) => `${_freqPill(f)} <span style="font-size:10px;color:#57636d;">${n}</span>`).join(' ');
+
+    const itemRows = expanded ? items.map(c => `
+      <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;gap:8px;padding:8px 16px 8px 44px;border-bottom:1px solid #fce8e8;cursor:pointer;background:#fffafa;" onmouseover="this.style.background='#fff0f0'" onmouseout="this.style.background='#fffafa'">
+        <i data-lucide="circle-dot" style="width:10px;height:10px;color:#b03030;flex-shrink:0;"></i>
+        <span style="font-size:12px;color:#2d2d2d;flex:1;">${c.description}</span>
+        ${_freqPill(c.frequency)}
+      </div>`).join('') : '';
+
     return `
-      <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f0f1f3;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#fef8f8'" onmouseout="this.style.background=''">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="background:#b03030;color:#fff;font-size:11px;font-weight:700;border-radius:12px;padding:2px 8px;min-width:22px;text-align:center;">${items.length}</span>
-          <span style="font-size:13px;font-weight:600;color:#0f2a1e;">${name}</span>
-          <div style="display:flex;gap:4px;">${tags}</div>
+      <div>
+        <div onclick="_toggleMissedDept('${deptId}')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f0f1f3;cursor:pointer;transition:background .15s;user-select:none;" onmouseover="this.style.background='#fef8f8'" onmouseout="this.style.background=''">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:#b03030;color:#fff;font-size:11px;font-weight:700;border-radius:12px;padding:2px 8px;min-width:22px;text-align:center;">${items.length}</span>
+            <span style="font-size:13px;font-weight:600;color:#0f2a1e;">${name}</span>
+            <div style="display:flex;gap:4px;align-items:center;">${tags}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span onclick="event.stopPropagation();enterDept('${deptId}')" style="font-size:11px;color:#2a8f5e;font-weight:700;cursor:pointer;">View →</span>
+            <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" style="width:14px;height:14px;color:#8a929a;"></i>
+          </div>
         </div>
-        <span style="font-size:11px;color:#2a8f5e;font-weight:700;">View →</span>
+        ${itemRows}
       </div>`;
   }).join('');
 
@@ -3021,12 +3050,12 @@ function renderMissedPanel() {
       <div style="border:1px solid #f1b3b3;border-radius:10px;overflow:hidden;">
         <div style="padding:14px 20px;background:#fff5f5;border-bottom:1px solid #f1b3b3;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <i data-lucide="alert-circle" style="width:15px;height:15px;color:#b03030;flex-shrink:0;"></i>
-          <span style="font-size:14px;font-weight:700;color:#7a1f1f;">Missed / Pending This Period</span>
+          <span style="font-size:14px;font-weight:700;color:#7a1f1f;">Pending This Period</span>
           <span style="font-size:12px;color:#8a929a;">${periodLabel}</span>
           <span style="margin-left:auto;background:#b03030;color:#fff;font-size:11px;font-weight:700;border-radius:12px;padding:2px 10px;">${total} not done</span>
         </div>
         <div style="background:#fff;">${rows}</div>
-        <div style="padding:10px 16px;background:#fafafa;font-size:11px;color:#8a929a;">Click a department to view and update its pending compliances</div>
+        <div style="padding:10px 16px;background:#fafafa;font-size:11px;color:#8a929a;">Click a department row to expand · "View →" to open its tracker</div>
       </div>
     </div>`;
   lucide.createIcons();
@@ -4283,55 +4312,56 @@ async function checkAndRecordMissed() {
   const now = new Date();
   const m = now.getMonth(); // 0-indexed
 
-  // --- Monthly check ---
+  function _missedMap(c) {
+    return { id: compId(c), dept: c.dept, description: c.description, frequency: c.frequency };
+  }
+
+  // --- Monthly check: Monthly + Event-based ---
   const prevMonth = _prevMonthKey();
-  const monthCheckKey = `comp-missed-check-month`;
-  if (localStorage.getItem(monthCheckKey) !== prevMonth) {
+  if (localStorage.getItem('comp-missed-check-month') !== prevMonth) {
     const missed = allCompliances()
-      .filter(c => c.frequency === 'Monthly')
+      .filter(c => c.frequency === 'Monthly' || c.frequency === 'Event-based')
       .filter(c => statusMap[compId(c)] !== `completed:${prevMonth}`)
-      .map(c => ({ id: compId(c), dept: c.dept, description: c.description }));
+      .map(_missedMap);
     await fetch('/api/missed', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ period: prevMonth, missed }),
     }).catch(() => {});
     missedHistory[prevMonth] = missed;
-    localStorage.setItem(monthCheckKey, prevMonth);
+    localStorage.setItem('comp-missed-check-month', prevMonth);
   }
 
-  // --- Quarterly check (runs in the first month of a new quarter: Jan=0, Apr=3, Jul=6, Oct=9) ---
+  // --- Quarterly check (Jan=0, Apr=3, Jul=6, Oct=9) ---
   if ([0, 3, 6, 9].includes(m)) {
     const prevQ = _prevQuarterKey();
-    const qCheckKey = `comp-missed-check-q`;
-    if (localStorage.getItem(qCheckKey) !== prevQ) {
+    if (localStorage.getItem('comp-missed-check-q') !== prevQ) {
       const missed = allCompliances()
         .filter(c => c.frequency === 'Quarterly')
         .filter(c => statusMap[compId(c)] !== `completed:${prevQ}`)
-        .map(c => ({ id: compId(c), dept: c.dept, description: c.description }));
+        .map(_missedMap);
       await fetch('/api/missed', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ period: prevQ, missed }),
       }).catch(() => {});
       missedHistory[prevQ] = missed;
-      localStorage.setItem(qCheckKey, prevQ);
+      localStorage.setItem('comp-missed-check-q', prevQ);
     }
   }
 
-  // --- Annual check (runs in April = month 3, start of new India FY) ---
+  // --- Annual check (April = month 3, start of new India FY) ---
   if (m === 3) {
     const prevFY = _prevFYKey();
-    const fyCheckKey = `comp-missed-check-fy`;
-    if (localStorage.getItem(fyCheckKey) !== prevFY) {
+    if (localStorage.getItem('comp-missed-check-fy') !== prevFY) {
       const missed = allCompliances()
         .filter(c => c.frequency === 'Annual')
         .filter(c => statusMap[compId(c)] !== `completed:${prevFY}`)
-        .map(c => ({ id: compId(c), dept: c.dept, description: c.description }));
+        .map(_missedMap);
       await fetch('/api/missed', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ period: prevFY, missed }),
       }).catch(() => {});
       missedHistory[prevFY] = missed;
-      localStorage.setItem(fyCheckKey, prevFY);
+      localStorage.setItem('comp-missed-check-fy', prevFY);
     }
   }
 
@@ -4352,6 +4382,13 @@ function _periodLabel(key) {
   return new Date(parseInt(y), parseInt(mo) - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 }
 
+const _missedPeriodExpanded = new Set();
+function _toggleMissedPeriod(key) {
+  if (_missedPeriodExpanded.has(key)) _missedPeriodExpanded.delete(key);
+  else _missedPeriodExpanded.add(key);
+  renderMissedHistory();
+}
+
 function renderMissedHistory() {
   const panel = document.getElementById('missed-history-panel');
   if (!panel) return;
@@ -4359,22 +4396,50 @@ function renderMissedHistory() {
   const entries = Object.entries(missedHistory)
     .filter(([, items]) => items && items.length > 0)
     .sort((a, b) => b[0].localeCompare(a[0]))
-    .slice(0, 12);
+    .slice(0, 24);
 
   if (entries.length === 0) { panel.innerHTML = ''; return; }
 
   const rows = entries.map(([period, items]) => {
+    const expanded = _missedPeriodExpanded.has(period);
     const byDept = {};
     items.forEach(c => { if (!byDept[c.dept]) byDept[c.dept] = []; byDept[c.dept].push(c); });
-    const deptTags = Object.entries(byDept).map(([deptId, cs]) => {
+
+    const deptTags = Object.keys(byDept).map(deptId => {
       const d = DEPARTMENTS.find(x => x.id === deptId);
-      return `<span style="font-size:11px;background:#f4f6f8;border:1px solid #e0e4e8;border-radius:4px;padding:2px 7px;color:#0f2a1e;">${d ? d.name : deptId} <b>${cs.length}</b></span>`;
+      return `<span style="font-size:10.5px;background:#f4f6f8;border:1px solid #e0e4e8;border-radius:4px;padding:2px 7px;color:#0f2a1e;">${d ? d.name : deptId} <b>${byDept[deptId].length}</b></span>`;
     }).join(' ');
+
+    const expandedContent = expanded ? Object.entries(byDept).map(([deptId, cs]) => {
+      const d = DEPARTMENTS.find(x => x.id === deptId);
+      const deptName = d ? d.name : deptId;
+      const itemRows = cs.map(c => `
+        <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;gap:8px;padding:7px 16px 7px 52px;border-bottom:1px solid #f0f1f3;cursor:pointer;background:#fafbfc;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='#fafbfc'">
+          <i data-lucide="circle-dot" style="width:9px;height:9px;color:#b03030;flex-shrink:0;"></i>
+          <span style="font-size:12px;color:#2d2d2d;flex:1;">${c.description}</span>
+          ${_freqPill(c.frequency || '')}
+        </div>`).join('');
+      return `
+        <div>
+          <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;gap:8px;padding:9px 16px 9px 32px;background:#f4f6f8;border-bottom:1px solid #e8ebee;cursor:pointer;" onmouseover="this.style.background='#eaf0ff'" onmouseout="this.style.background='#f4f6f8'">
+            <i data-lucide="folder" style="width:12px;height:12px;color:#57636d;"></i>
+            <span style="font-size:12px;font-weight:700;color:#0f2a1e;">${deptName}</span>
+            <span style="font-size:11px;color:#8a929a;">${cs.length} missed</span>
+            <span style="margin-left:auto;font-size:11px;color:#2a8f5e;font-weight:700;">View dept →</span>
+          </div>
+          ${itemRows}
+        </div>`;
+    }).join('') : '';
+
     return `
-      <div style="padding:12px 16px;border-bottom:1px solid #f0f1f3;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span style="font-size:12px;font-weight:700;color:#7a1f1f;min-width:90px;">${_periodLabel(period)}</span>
-        <span style="background:#f8d7da;color:#842121;font-size:10.5px;font-weight:700;border-radius:10px;padding:2px 8px;">${items.length} missed</span>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;">${deptTags}</div>
+      <div>
+        <div onclick="_toggleMissedPeriod('${period}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #f0f1f3;cursor:pointer;user-select:none;transition:background .15s;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+          <span style="font-size:12px;font-weight:700;color:#7a1f1f;min-width:95px;">${_periodLabel(period)}</span>
+          <span style="background:#f8d7da;color:#842121;font-size:10.5px;font-weight:700;border-radius:10px;padding:2px 8px;white-space:nowrap;">${items.length} missed</span>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;flex:1;">${deptTags}</div>
+          <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" style="width:14px;height:14px;color:#8a929a;flex-shrink:0;"></i>
+        </div>
+        ${expandedContent}
       </div>`;
   }).join('');
 
@@ -4384,7 +4449,7 @@ function renderMissedHistory() {
         <div style="padding:12px 18px;background:#f8f9fa;border-bottom:1px solid #e6e8eb;display:flex;align-items:center;gap:8px;">
           <i data-lucide="history" style="width:14px;height:14px;color:#57636d;"></i>
           <span style="font-size:13px;font-weight:700;color:#0f2a1e;">Missed Compliance History</span>
-          <span style="font-size:11.5px;color:#8a929a;">Past periods where compliances were not completed</span>
+          <span style="font-size:11.5px;color:#8a929a;">Click a period to expand</span>
         </div>
         <div style="background:#fff;">${rows}</div>
       </div>
