@@ -1005,6 +1005,7 @@
       <p>Click a department to view its compliance tracker</p>
     </div>
     <div class="dept-grid" id="dept-grid"></div>
+    <div id="missed-panel"></div>
   </div>
 
   <!-- ============================== DEPARTMENT VIEW ============================== -->
@@ -2901,6 +2902,75 @@ function deptStats(id) {
   return { total, done, pct, state };
 }
 
+function renderMissedPanel() {
+  const panel = document.getElementById('missed-panel');
+  if (!panel) return;
+
+  const now = new Date();
+  const monthLabel = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const q = Math.floor(now.getMonth() / 3) + 1;
+  const fy = now.getMonth() >= 3 ? now.getFullYear() + 1 : now.getFullYear();
+  const periodLabel = `${monthLabel} · Q${q} · FY${fy - 1}-${String(fy).slice(2)}`;
+
+  // Collect all recurring compliances not done this period, grouped by dept
+  const RECURRING = ['Monthly', 'Quarterly', 'Annual'];
+  const byDept = {};
+  allCompliances().forEach(c => {
+    if (!RECURRING.includes(c.frequency)) return;
+    if (getStatus(c) === 'completed') return;
+    if (!byDept[c.dept]) byDept[c.dept] = [];
+    byDept[c.dept].push(c);
+  });
+
+  const deptEntries = Object.entries(byDept).sort((a, b) => b[1].length - a[1].length);
+  const total = deptEntries.reduce((sum, [, items]) => sum + items.length, 0);
+
+  if (total === 0) {
+    panel.innerHTML = `
+      <div style="margin:28px auto;max-width:900px;padding:0 24px;">
+        <div style="background:#eef5f1;border:1px solid #c0ddd0;border-radius:10px;padding:18px 22px;display:flex;align-items:center;gap:10px;">
+          <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#2a8f5e;flex-shrink:0;"></i>
+          <span style="font-size:13px;font-weight:600;color:#0f2a1e;">All recurring compliances are done for the current period.</span>
+        </div>
+      </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  const rows = deptEntries.map(([deptId, items]) => {
+    const dept = DEPARTMENTS.find(d => d.id === deptId);
+    const name = dept ? dept.name : deptId;
+    const freqBreakdown = { Monthly: 0, Quarterly: 0, Annual: 0 };
+    items.forEach(c => { if (freqBreakdown[c.frequency] !== undefined) freqBreakdown[c.frequency]++; });
+    const tags = Object.entries(freqBreakdown).filter(([, n]) => n > 0)
+      .map(([f, n]) => `<span style="font-size:10px;background:#f4f6f8;border:1px solid #e0e4e8;border-radius:4px;padding:1px 6px;color:#57636d;">${n} ${f}</span>`).join(' ');
+    return `
+      <div onclick="enterDept('${deptId}')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f0f1f3;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#fef8f8'" onmouseout="this.style.background=''">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="background:#b03030;color:#fff;font-size:11px;font-weight:700;border-radius:12px;padding:2px 8px;min-width:22px;text-align:center;">${items.length}</span>
+          <span style="font-size:13px;font-weight:600;color:#0f2a1e;">${name}</span>
+          <div style="display:flex;gap:4px;">${tags}</div>
+        </div>
+        <span style="font-size:11px;color:#2a8f5e;font-weight:700;">View →</span>
+      </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div style="margin:28px auto;max-width:900px;padding:0 24px 40px;">
+      <div style="border:1px solid #f1b3b3;border-radius:10px;overflow:hidden;">
+        <div style="padding:14px 20px;background:#fff5f5;border-bottom:1px solid #f1b3b3;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <i data-lucide="alert-circle" style="width:15px;height:15px;color:#b03030;flex-shrink:0;"></i>
+          <span style="font-size:14px;font-weight:700;color:#7a1f1f;">Missed / Pending This Period</span>
+          <span style="font-size:12px;color:#8a929a;">${periodLabel}</span>
+          <span style="margin-left:auto;background:#b03030;color:#fff;font-size:11px;font-weight:700;border-radius:12px;padding:2px 10px;">${total} not done</span>
+        </div>
+        <div style="background:#fff;">${rows}</div>
+        <div style="padding:10px 16px;background:#fafafa;font-size:11px;color:#8a929a;">Click a department to view and update its pending compliances</div>
+      </div>
+    </div>`;
+  lucide.createIcons();
+}
+
 function renderLanding() {
   const grid = document.getElementById('dept-grid');
   grid.innerHTML = DEPARTMENTS.map(d => {
@@ -2922,6 +2992,7 @@ function renderLanding() {
       </div>`;
   }).join('');
   lucide.createIcons();
+  renderMissedPanel();
 }
 
 // ============================================================
