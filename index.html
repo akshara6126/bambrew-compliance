@@ -3131,7 +3131,11 @@ function showManagement() {
   const openSheetBtn2 = document.getElementById('open-sheet-btn');
   if (deptExcelBtn2) { deptExcelBtn2.style.display = 'none'; }
   if (allExcelBtn2)  { allExcelBtn2.style.display  = 'inline-flex'; }
-  if (openSheetBtn2) { openSheetBtn2.style.display  = 'none'; }
+  if (openSheetBtn2) {
+    const mgmtUrl = (_gsheetConfig['__management__'] || {}).link || '';
+    openSheetBtn2.href         = mgmtUrl;
+    openSheetBtn2.style.display = mgmtUrl ? 'inline-flex' : 'none';
+  }
   lucide.createIcons();
   const all = allCompliances();
   const typeFiltered = typeFilter === 'all' ? all : all.filter(c => c.type === typeFilter);
