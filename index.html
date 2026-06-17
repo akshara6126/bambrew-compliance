@@ -2734,6 +2734,27 @@ async function saveGSheetConfig(deptId) {
   if (msg) { msg.textContent = 'Saved.'; setTimeout(() => { msg.textContent = ''; }, 2000); }
 }
 
+async function loadGSheetPanelInto(containerId) {
+  const body = document.getElementById(containerId);
+  if (!body) return;
+  // Add Sync All + Setup Code buttons header inside the tab
+  body.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+      <span id="gsheet-sync-msg" style="font-size:11px;color:#2a8f5e;font-weight:600;flex:1;"></span>
+      <button onclick="syncAllGSheets()"
+        style="background:#1a73e8;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;">
+        <i data-lucide="refresh-cw" style="width:11px;height:11px;"></i> Sync All Now
+      </button>
+      <button onclick="openAppsScriptModal()"
+        style="background:#0f2a1e;color:#fff;border:0;border-radius:6px;padding:7px 12px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;">
+        <i data-lucide="code-2" style="width:11px;height:11px;"></i> View Setup Code
+      </button>
+    </div>
+    <div id="gsheet-panel-body"><p style="color:#8a929a;font-size:13px;">Loading…</p></div>`;
+  lucide.createIcons();
+  await loadGSheetPanel();
+}
+
 async function testGSheetSync(deptId) {
   await saveGSheetConfig(deptId);
   const webhook = (_gsheetConfig[deptId] || {}).webhook;
@@ -3191,6 +3212,11 @@ function showDept(id) {
   const dept = DEPARTMENTS.find(d => d.id === id);
   const items = allCompliances().filter(c => c.dept === id);
 
+  // Clean up management-only panels that persist in #dept-view
+  document.getElementById('mgmt-settings-tabs')?.remove();
+  document.getElementById('email-access-panel')?.remove();
+  document.getElementById('gsheet-panel')?.remove();
+
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dept-view').classList.add('active');
   document.getElementById('dept-title').textContent = dept.name;
@@ -3247,8 +3273,76 @@ function showManagement() {
   const typeFiltered = typeFilter === 'all' ? all : typeFilter === 'not-done' ? all.filter(c => getStatus(c) !== 'completed') : all.filter(c => c.type === typeFilter);
   renderStats(typeFiltered);
   renderTable(typeFiltered, true);
-  renderEmailAccessPanel();
-  renderGSheetPanel();
+  renderMgmtSettingsTabs();
+}
+
+// === Management Settings Tabs (Email Access + Google Sheets) ===
+let _activeMgmtTab = null;
+
+function renderMgmtSettingsTabs() {
+  document.getElementById('mgmt-settings-tabs')?.remove();
+  document.getElementById('email-access-panel')?.remove();
+  document.getElementById('gsheet-panel')?.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'mgmt-settings-tabs';
+  wrap.style.cssText = 'margin:32px auto 0;max-width:900px;padding:0 24px 56px;';
+  wrap.innerHTML = `
+    <div style="border:1px solid #e6e8eb;border-radius:10px;overflow:hidden;">
+      <div style="display:flex;background:#f8f9fa;border-bottom:1px solid #e6e8eb;">
+        <button id="mgmt-tab-btn-email" onclick="_toggleMgmtTab('email')"
+          style="flex:1;padding:13px 18px;background:none;border:none;border-right:1px solid #e6e8eb;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:700;color:#57636d;font-family:inherit;transition:background .15s;">
+          <i data-lucide="mail-check" style="width:13px;height:13px;"></i> Email Access Control
+          <i data-lucide="chevron-down" id="mgmt-tab-chev-email" style="width:12px;height:12px;margin-left:2px;"></i>
+        </button>
+        <button id="mgmt-tab-btn-gsheet" onclick="_toggleMgmtTab('gsheet')"
+          style="flex:1;padding:13px 18px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:700;color:#57636d;font-family:inherit;transition:background .15s;">
+          <i data-lucide="table-2" style="width:13px;height:13px;"></i> Google Sheets Integration
+          <i data-lucide="chevron-down" id="mgmt-tab-chev-gsheet" style="width:12px;height:12px;margin-left:2px;"></i>
+        </button>
+      </div>
+      <div id="mgmt-tab-content-email" style="display:none;"></div>
+      <div id="mgmt-tab-content-gsheet" style="display:none;"></div>
+    </div>`;
+  document.getElementById('dept-view').appendChild(wrap);
+  lucide.createIcons();
+}
+
+function _toggleMgmtTab(tab) {
+  const isSame = _activeMgmtTab === tab;
+  _activeMgmtTab = isSame ? null : tab;
+
+  ['email', 'gsheet'].forEach(t => {
+    const content = document.getElementById(`mgmt-tab-content-${t}`);
+    const btn = document.getElementById(`mgmt-tab-btn-${t}`);
+    const chev = document.getElementById(`mgmt-tab-chev-${t}`);
+    const isActive = _activeMgmtTab === t;
+    if (content) content.style.display = isActive ? 'block' : 'none';
+    if (btn) {
+      btn.style.background = isActive ? '#fff' : '';
+      btn.style.color = isActive ? '#0f2a1e' : '#57636d';
+      btn.style.borderBottom = isActive ? '2px solid #0f2a1e' : '';
+    }
+    if (chev) chev.setAttribute('data-lucide', isActive ? 'chevron-up' : 'chevron-down');
+  });
+  lucide.createIcons();
+
+  if (_activeMgmtTab === 'email') {
+    const body = document.getElementById('mgmt-tab-content-email');
+    if (body && body.innerHTML.trim() === '') {
+      body.style.padding = '20px 22px';
+      body.innerHTML = '<p style="color:#8a929a;font-size:13px;">Loading…</p>';
+      loadEmailPanel('mgmt-tab-content-email');
+    }
+  }
+  if (_activeMgmtTab === 'gsheet') {
+    const body = document.getElementById('mgmt-tab-content-gsheet');
+    if (body && body.innerHTML.trim() === '') {
+      body.style.padding = '20px 22px';
+      body.innerHTML = '<p style="color:#8a929a;font-size:13px;">Loading…</p>';
+      loadGSheetPanelInto('mgmt-tab-content-gsheet');
+    }
+  }
 }
 
 // === Email Access Panel (management view only) ===
@@ -3277,8 +3371,8 @@ function renderEmailAccessPanel() {
   loadEmailPanel();
 }
 
-async function loadEmailPanel() {
-  const body = document.getElementById('email-panel-body');
+async function loadEmailPanel(containerId) {
+  const body = document.getElementById(containerId || 'email-panel-body');
   if (!body) return;
 
   try {
