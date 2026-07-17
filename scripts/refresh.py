@@ -156,7 +156,7 @@ def to_news_js(items):
     now_iso = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     today_iso = datetime.datetime.now().strftime("%Y-%m-%d")
 
-    lines = [f"const LAST_REFRESH = '{now_iso}';", "let NEWS = ["]
+    lines = [f"let LAST_REFRESH = '{now_iso}';", "let NEWS = ["]
     for it in items[:MAX_NEWS_TOTAL]:
         lines.append(
             "  { date: '"     + js_str(it["date"])   + "', "

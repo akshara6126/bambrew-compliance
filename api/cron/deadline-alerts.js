@@ -233,17 +233,10 @@ function buildFoundersEmail({ urgentItems }) {
 </div>`;
 }
 
-// ── Pause control — no emails sent before this date ──────────────────────────
-const PAUSE_UNTIL = '2026-07-01'; // resume on July 1
-
 // ── Main handler ──────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  if (todayISO() < PAUSE_UNTIL) {
-    return res.status(200).json({ ok: true, paused: true, resumesOn: PAUSE_UNTIL, message: 'Emails paused — no alerts sent.' });
   }
 
   try {
