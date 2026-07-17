@@ -156,7 +156,7 @@ def to_news_js(items):
     now_iso = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     today_iso = datetime.datetime.now().strftime("%Y-%m-%d")
 
-    lines = [f"const LAST_REFRESH = '{now_iso}';", "const NEWS = ["]
+    lines = [f"const LAST_REFRESH = '{now_iso}';", "let NEWS = ["]
     for it in items[:MAX_NEWS_TOTAL]:
         lines.append(
             "  { date: '"     + js_str(it["date"])   + "', "
@@ -168,7 +168,7 @@ def to_news_js(items):
         )
     lines.append("];")
 
-    lines.append("const AUTO_DISCOVERED_COMPLIANCES = [")
+    lines.append("let AUTO_DISCOVERED_COMPLIANCES = [")
     auto_count = 0
     for it in items:
         if not is_likely_compliance(it["title"]): continue

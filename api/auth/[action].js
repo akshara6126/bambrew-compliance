@@ -1,6 +1,12 @@
 import { kv } from '@vercel/kv';
 import nodemailer from 'nodemailer';
 
+// Consolidated auth endpoint. Vercel's dynamic-route file naming ([action].js)
+// means /api/auth/manage-emails, /api/auth/request-otp and /api/auth/verify-otp
+// all resolve here via req.query.action — no frontend URL changes needed.
+// This merges what used to be 3 separate Serverless Functions into 1, which
+// matters on the Hobby plan's 12-function-per-deployment cap.
+
 const DEPT_NAMES = {
   __management__: 'Management / Founders View',
   cs: 'Company Secretary', legal: 'Legal', hr: 'HR', finance: 'Finance',
@@ -28,8 +34,45 @@ async function sendEmail({ to, subject, html }) {
   });
 }
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+async function manageEmails(req, res) {
+  if (req.method === 'GET') {
+    const { dept } = req.query;
+    if (!dept) return res.status(400).json({ error: 'dept required' });
+    const [emails, alertEmail] = await Promise.all([
+      kv.get(`dept-emails:${dept}`),
+      kv.get(`dept-alert-email:${dept}`),
+    ]);
+    return res.status(200).json({ emails: emails || [], alertEmail: alertEmail || '' });
+  }
+
+  if (req.method === 'POST') {
+    const { dept, emails, alertEmail } = req.body || {};
+    if (!dept || !Array.isArray(emails)) return res.status(400).json({ error: 'dept and emails array required' });
+    const cleaned = [...new Set(emails.map(e => e.toLowerCase().trim()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))];
+    const ops = [kv.set(`dept-emails:${dept}`, cleaned)];
+    if (alertEmail !== undefined) {
+      const alert = alertEmail.toLowerCase().trim();
+      ops.push(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alert)
+        ? kv.set(`dept-alert-email:${dept}`, alert)
+        : kv.del(`dept-alert-email:${dept}`));
+    }
+    await Promise.all(ops);
+    return res.status(200).json({ success: true, emails: cleaned });
+  }
+
+  if (req.method === 'DELETE') {
+    const { dept, email } = req.query;
+    if (!dept || !email) return res.status(400).json({ error: 'dept and email required' });
+    const emails = (await kv.get(`dept-emails:${dept}`)) || [];
+    const updated = emails.filter(e => e.toLowerCase() !== email.toLowerCase().trim());
+    await kv.set(`dept-emails:${dept}`, updated);
+    return res.status(200).json({ success: true, emails: updated });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+async function requestOtp(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
@@ -117,5 +160,44 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('request-otp error:', err);
     return res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
+  }
+}
+
+async function verifyOtp(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    const { email, dept, otp } = req.body || {};
+    if (!email || !dept || !otp) return res.status(400).json({ error: 'Email, department, and OTP are required.' });
+
+    const emailLower = email.toLowerCase().trim();
+    const kvKey = `otp:${emailLower}:${dept}`;
+    const storedOtp = await kv.get(kvKey);
+
+    if (!storedOtp) return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    if (String(otp).trim() !== String(storedOtp)) return res.status(400).json({ error: 'Incorrect OTP. Please check the code and try again.' });
+
+    await kv.del(kvKey);
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('verify-otp error:', err);
+    return res.status(500).json({ error: 'Verification failed. Please try again.' });
+  }
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  const { action } = req.query;
+
+  switch (action) {
+    case 'manage-emails':
+      return manageEmails(req, res);
+    case 'request-otp':
+      return requestOtp(req, res);
+    case 'verify-otp':
+      return verifyOtp(req, res);
+    default:
+      return res.status(404).json({ error: 'Unknown auth action' });
   }
 }
