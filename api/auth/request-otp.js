@@ -2,7 +2,7 @@ import { kv } from '@vercel/kv';
 import nodemailer from 'nodemailer';
 
 const DEPT_NAMES = {
-  __management__: 'Management View',
+  __management__: 'Management / Founders View',
   cs: 'Company Secretary', legal: 'Legal', hr: 'HR', finance: 'Finance',
   marketing: 'Marketing', operations: 'Operations', supply: 'Supply Chain',
   design: 'Design', rnd: 'R&D', sales: 'Sales',
@@ -41,12 +41,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Please enter a valid email address.' });
     }
 
-    const [authorizedEmails, alertEmail] = await Promise.all([
-      kv.get(`dept-emails:${dept}`),
+    // For management view, founders also have access
+    const emailKeys = dept === '__management__'
+      ? [`dept-emails:__management__`, `dept-emails:__founders__`]
+      : [`dept-emails:${dept}`];
+
+    const [alertEmail, ...emailLists] = await Promise.all([
       kv.get(`dept-alert-email:${dept}`),
+      ...emailKeys.map(k => kv.get(k)),
     ]);
 
-    const authorized = (authorizedEmails || []).map(e => e.toLowerCase());
+    const authorized = emailLists.flat().filter(Boolean).map(e => e.toLowerCase());
     const isAuthorized = authorized.includes(emailLower);
 
     if (!isAuthorized) {
