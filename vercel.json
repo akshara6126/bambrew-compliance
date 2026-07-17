@@ -4,10 +4,7 @@
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [
-    { "source": "/api/auth/manage-emails", "destination": "/api/auth/[action]?action=manage-emails" },
-    { "source": "/api/auth/request-otp",   "destination": "/api/auth/[action]?action=request-otp" },
-    { "source": "/api/auth/verify-otp",    "destination": "/api/auth/[action]?action=verify-otp" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
