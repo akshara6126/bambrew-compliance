@@ -3730,8 +3730,8 @@ async function loadEmailPanel(containerId) {
       allDepts.map(d =>
         fetch(`/api/auth/manage-emails?dept=${d.id}`)
           .then(r => r.json())
-          .then(data => ({ id: d.id, name: d.name, emails: data.emails || [], alertEmail: data.alertEmail || '' }))
-          .catch(() => ({ id: d.id, name: d.name, emails: [], alertEmail: '' }))
+          .then(data => ({ id: d.id, name: d.name, emails: data.emails || [] }))
+          .catch(() => ({ id: d.id, name: d.name, emails: [] }))
       )
     );
 
@@ -3758,17 +3758,6 @@ async function loadEmailPanel(containerId) {
               onkeydown="if(event.key==='Enter')addDeptEmail('${dept.id}')" />
             <button onclick="addDeptEmail('${dept.id}')"
               style="background:#2a8f5e;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;">Add</button>
-          </div>
-          <div style="padding-top:12px;border-top:1px solid #f0f1f3;">
-            <label style="font-size:11px;font-weight:600;color:#57636d;display:block;margin-bottom:6px;">Alert recipient (gets notified of unauthorized attempts)</label>
-            <div style="display:flex;gap:8px;">
-              <input id="alert-email-${dept.id}" type="email" placeholder="Alert recipient email"
-                value="${dept.alertEmail}"
-                style="flex:1;font-size:12px;padding:7px 10px;border:1px solid #d0d4d8;border-radius:6px;" />
-              <button onclick="saveAlertEmail('${dept.id}')"
-                style="background:#0f2a1e;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;">Save</button>
-            </div>
-            <div id="alert-msg-${dept.id}" style="font-size:11px;color:#2a8f5e;margin-top:4px;min-height:14px;"></div>
           </div>
         </div>
       </div>`).join('');
@@ -3798,19 +3787,6 @@ async function addDeptEmail(deptId) {
 async function removeDeptEmail(deptId, email) {
   await fetch(`/api/auth/manage-emails?dept=${deptId}&email=${encodeURIComponent(email)}`, { method: 'DELETE' });
   await loadEmailPanel();
-}
-
-async function saveAlertEmail(deptId) {
-  const input = document.getElementById(`alert-email-${deptId}`);
-  const alertEmail = input ? input.value.trim() : '';
-  const res = await fetch(`/api/auth/manage-emails?dept=${deptId}`).then(r => r.json()).catch(() => ({ emails: [] }));
-  await fetch('/api/auth/manage-emails', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dept: deptId, emails: res.emails || [], alertEmail }),
-  });
-  const msg = document.getElementById(`alert-msg-${deptId}`);
-  if (msg) { msg.textContent = 'Saved.'; setTimeout(() => { msg.textContent = ''; }, 2000); }
 }
 
 // === Add Compliance modal ===

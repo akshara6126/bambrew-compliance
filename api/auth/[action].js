@@ -38,25 +38,15 @@ async function manageEmails(req, res) {
   if (req.method === 'GET') {
     const { dept } = req.query;
     if (!dept) return res.status(400).json({ error: 'dept required' });
-    const [emails, alertEmail] = await Promise.all([
-      kv.get(`dept-emails:${dept}`),
-      kv.get(`dept-alert-email:${dept}`),
-    ]);
-    return res.status(200).json({ emails: emails || [], alertEmail: alertEmail || '' });
+    const emails = await kv.get(`dept-emails:${dept}`);
+    return res.status(200).json({ emails: emails || [] });
   }
 
   if (req.method === 'POST') {
-    const { dept, emails, alertEmail } = req.body || {};
+    const { dept, emails } = req.body || {};
     if (!dept || !Array.isArray(emails)) return res.status(400).json({ error: 'dept and emails array required' });
     const cleaned = [...new Set(emails.map(e => e.toLowerCase().trim()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))];
-    const ops = [kv.set(`dept-emails:${dept}`, cleaned)];
-    if (alertEmail !== undefined) {
-      const alert = alertEmail.toLowerCase().trim();
-      ops.push(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alert)
-        ? kv.set(`dept-alert-email:${dept}`, alert)
-        : kv.del(`dept-alert-email:${dept}`));
-    }
-    await Promise.all(ops);
+    await kv.set(`dept-emails:${dept}`, cleaned);
     return res.status(200).json({ success: true, emails: cleaned });
   }
 
@@ -89,39 +79,12 @@ async function requestOtp(req, res) {
       ? [`dept-emails:__management__`, `dept-emails:__founders__`]
       : [`dept-emails:${dept}`];
 
-    const [alertEmail, ...emailLists] = await Promise.all([
-      kv.get(`dept-alert-email:${dept}`),
-      ...emailKeys.map(k => kv.get(k)),
-    ]);
+    const emailLists = await Promise.all(emailKeys.map(k => kv.get(k)));
 
     const authorized = emailLists.flat().filter(Boolean).map(e => e.toLowerCase());
     const isAuthorized = authorized.includes(emailLower);
 
     if (!isAuthorized) {
-      const effectiveAlertEmail = alertEmail || 'f20240761@pilani.bits-pilani.ac.in';
-      const deptName = DEPT_NAMES[dept] || dept;
-      const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
-      try {
-        await sendEmail({
-          to: effectiveAlertEmail,
-          subject: `Unauthorized access attempt: ${deptName}`,
-          html: `
-            <div style="font-family:-apple-system,sans-serif;max-width:460px;margin:0 auto;padding:32px 24px;border:1px solid #e6e8eb;border-radius:8px;">
-              <div style="margin-bottom:20px;"><span style="background:#0f2a1e;color:#fff;padding:5px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.8px;">BAMBREW COMPLIANCE</span></div>
-              <div style="background:#fff3f3;border:1px solid #f5c6c6;border-radius:8px;padding:18px 20px;margin-bottom:20px;">
-                <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#842121;">Unauthorized access attempt</p>
-                <p style="margin:0;font-size:13px;color:#57636d;">Someone tried to access <strong>${deptName}</strong> using an email not on the authorized list.</p>
-              </div>
-              <table style="font-size:13px;width:100%;border-collapse:collapse;">
-                <tr><td style="padding:7px 0;color:#8a929a;width:110px;">Email used</td><td style="color:#0f2a1e;font-weight:600;">${emailLower}</td></tr>
-                <tr><td style="padding:7px 0;color:#8a929a;">Department</td><td style="color:#0f2a1e;">${deptName}</td></tr>
-                <tr><td style="padding:7px 0;color:#8a929a;">Time (IST)</td><td style="color:#0f2a1e;">${now}</td></tr>
-              </table>
-            </div>`,
-        });
-      } catch (alertErr) {
-        console.error('Alert email failed:', alertErr);
-      }
       return res.status(403).json({ error: 'This email is not authorized for this department. Contact your manager.' });
     }
 
