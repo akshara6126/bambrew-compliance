@@ -199,6 +199,35 @@
     color: #fff;
   }
 
+  .dept-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-bottom: 12px;
+    margin-left: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .dept-filter label {
+    font-weight: 700;
+    font-size: 11.5px;
+    color: #57636d;
+    letter-spacing: 0.3px;
+  }
+  .dept-filter select {
+    border: 1px solid #e6e8eb;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f2a1e;
+    background: #fff;
+    cursor: pointer;
+  }
+
   /* === Search bar === */
   .search-bar {
     display: flex;
@@ -1169,6 +1198,13 @@
       <button class="type-filter-btn"        data-type="statutory" onclick="setTypeFilter('statutory')"><i data-lucide="scale" style="width:12px;height:12px;"></i> Statutory only</button>
       <button class="type-filter-btn"        data-type="internal"  onclick="setTypeFilter('internal')"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Internal only</button>
       <button class="type-filter-btn"        data-type="not-done"  onclick="setTypeFilter('not-done')" style="color:#b03030;border-color:#f1b3b3;"><i data-lucide="alert-circle" style="width:12px;height:12px;"></i> Not Done</button>
+    </div>
+
+    <!-- Department filter — management view only -->
+    <div class="dept-filter" id="dept-filter-wrap" style="display:none;">
+      <i data-lucide="building" style="width:13px;height:13px;color:#57636d;"></i>
+      <label for="dept-filter-select">Department</label>
+      <select id="dept-filter-select" onchange="setDeptFilterVal(this.value)"></select>
     </div>
 
     <!-- Search bar: visible in both dept view and management view -->
@@ -3390,7 +3426,7 @@ function _setModalError(msg) {
 // --- Management view (password, unchanged) ---
 function openManagementView() {
   pendingDept = '__management__';
-  if (sessionStorage.getItem('comp-mgmt-unlocked') === '1') { showManagement(); return; }
+  if (sessionStorage.getItem('comp-mgmt-unlocked') === '1') { managementMode = true; showManagement(); return; }
   _showEmailStep();
 }
 
@@ -3568,6 +3604,7 @@ function showDept(id) {
     `${items.length} compliance item${items.length === 1 ? '' : 's'} tracked`;
   document.getElementById('add-btn').style.display = 'inline-block';
   document.getElementById('add-btn').dataset.deptId = id;
+  document.getElementById('dept-filter-wrap').style.display = 'none';
   // export buttons — dept view
   const deptExcelBtn = document.getElementById('dept-excel-btn');
   const allExcelBtn  = document.getElementById('all-excel-btn');
@@ -3599,9 +3636,10 @@ function showManagement() {
   document.getElementById('landing').style.display = 'none';
   document.getElementById('dept-view').classList.add('active');
   document.getElementById('dept-title').textContent = 'Management View · All Departments';
-  document.getElementById('dept-meta').textContent =
-    `${allCompliances().length} compliance items across ${DEPARTMENTS.length} departments`;
   document.getElementById('add-btn').style.display = 'none';
+  const deptFilterWrap = document.getElementById('dept-filter-wrap');
+  if (deptFilterWrap) deptFilterWrap.style.display = 'inline-flex';
+  populateDeptFilterSelect();
   // export buttons — management view
   const deptExcelBtn2 = document.getElementById('dept-excel-btn');
   const allExcelBtn2  = document.getElementById('all-excel-btn');
@@ -3615,10 +3653,15 @@ function showManagement() {
   }
   lucide.createIcons();
   const all = allCompliances();
-  const typeFiltered = typeFilter === 'all' ? all : typeFilter === 'not-done' ? all.filter(c => getStatus(c) !== 'completed') : all.filter(c => c.type === typeFilter);
+  const deptScoped = deptFilterVal === 'all' ? all : all.filter(c => c.dept === deptFilterVal);
+  const typeFiltered = typeFilter === 'all' ? deptScoped : typeFilter === 'not-done' ? deptScoped.filter(c => getStatus(c) !== 'completed') : deptScoped.filter(c => c.type === typeFilter);
+  const deptLabel = deptFilterVal === 'all' ? null : (DEPARTMENTS.find(d => d.id === deptFilterVal) || {}).name;
+  document.getElementById('dept-meta').textContent = deptLabel
+    ? `${deptScoped.length} compliance item${deptScoped.length === 1 ? '' : 's'} · ${deptLabel}`
+    : `${all.length} compliance items across ${DEPARTMENTS.length} departments`;
   renderStats(typeFiltered);
   renderTable(typeFiltered, true);
-  renderDeletedSection(null);
+  renderDeletedSection(deptFilterVal === 'all' ? null : deptFilterVal);
   renderMgmtSettingsTabs();
 }
 
@@ -4259,6 +4302,20 @@ function backToLanding() {
 // ============================================================
 let searchTerm = '';
 let typeFilter = 'all'; // 'all' | 'statutory' | 'internal'
+let deptFilterVal = 'all'; // 'all' | a DEPARTMENTS[].id — management view only
+
+function populateDeptFilterSelect() {
+  const sel = document.getElementById('dept-filter-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="all">All Departments</option>' +
+    DEPARTMENTS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  sel.value = deptFilterVal;
+}
+
+function setDeptFilterVal(v) {
+  deptFilterVal = v;
+  if (managementMode) showManagement();
+}
 
 function setTypeFilter(t) {
   typeFilter = t;
