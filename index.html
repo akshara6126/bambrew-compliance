@@ -4226,7 +4226,7 @@ function renderTable(items, showDeptCol) {
         <input type="date" value="${deadline}"
           style="font-size:11px;border:1px solid #d0d4d8;border-radius:5px;padding:4px 6px;color:#0f2a1e;background:#fff;cursor:pointer;width:100%;"
           onchange="onChangeDeadline('${compId(c)}', this.value)">
-        ${deadlineBadgeHtml(deadline)}
+        ${status === 'not-applicable' ? '' : deadlineBadgeHtml(deadline)}
       </td>`;
     const infoQuery = encodeURIComponent(c.description + ' ' + (c.statutoryRef || '') + ' India compliance');
     const infoUrl = `https://www.google.com/search?q=${infoQuery}`;
