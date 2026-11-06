@@ -142,6 +142,7 @@ function statusPill(status) {
     'not-started': ['#b03030','#fde8e8','Not Started'],
     'in-progress':  ['#b88410','#fef8e1','In Progress'],
     'completed':    ['#2a8f5e','#edf7f2','Completed'],
+    'not-applicable': ['#57636d','#eceef0','Not Applicable'],
   }[status] || ['#8a929a','#f4f4f4','Unknown'];
   return `<span style="background:${cfg[1]};color:${cfg[0]};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;">${cfg[2]}</span>`;
 }
@@ -331,6 +332,7 @@ export default async function handler(req, res) {
 
       const dept     = entry.dept || cid.split('-')[0];
       const status   = resolveStatus(statusMap, cid);
+      if (status === 'not-applicable') continue; // marked irrelevant — never alert
       const item     = { cid, dept, description: entry.description || cid, deadlineISO: isoDate(effectiveDate), daysLeft, status };
 
       // Dept gets one email for: 25→11 (not-started) + 10→0 (not-completed)

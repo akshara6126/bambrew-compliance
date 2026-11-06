@@ -636,6 +636,7 @@
   }
   .stat-chip-done   { color: #2a8f5e; }
   .stat-chip-pending { color: #c0740a; }
+  .stat-chip-na { color: #8a929a; }
   .stat-tag-btn { transition: opacity 0.15s; }
   .stat-tag-btn:hover { opacity: 0.75; }
   .stat-divider {
@@ -732,6 +733,11 @@
   .rag-select.rag-completed {
     background-color: #d6efe0; color: #155c3a;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%23155c3a'><path d='M0 0l5 6 5-6z'/></svg>");
+  }
+
+  .rag-select.rag-not-applicable {
+    background-color: #eceef0; color: #57636d;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%2357636d'><path d='M0 0l5 6 5-6z'/></svg>");
   }
 
   /* === Priority dropdown: compact === */
@@ -846,6 +852,9 @@
     text-decoration-color: #6b7680;
   }
   .comp-table tbody tr.row-completed:hover td { background: #eaf3ed; }
+  /* Not Applicable rows: greyed out, kept for the record */
+  .comp-table tbody tr.row-na td { background: #f7f8f9; color: #9aa2a9; }
+  .comp-table tbody tr.row-na:hover td { background: #f0f1f3; }
 
   /* === Compliance type pill (Statutory vs Internal) === */
   .type-pill {
@@ -2727,8 +2736,9 @@ function doPost(e) {
     for (let r = 2; r <= rows.length; r++) {
       const cell = sheet.getRange(r, 2);
       const val  = (rows[r - 1][1] || '').toLowerCase();
-      if      (val === 'completed')    cell.setBackground('#d4edda');
-      else if (val === 'in-progress')  cell.setBackground('#fff3cd');
+      if      (val === 'completed' || val === 'done') cell.setBackground('#d4edda');
+      else if (val === 'in-progress' || val === 'in progress') cell.setBackground('#fff3cd');
+      else if (val === 'not-applicable' || val === 'not applicable') cell.setBackground('#eceef0');
       else if (val === 'overdue')      cell.setBackground('#f8d7da');
       else                             cell.setBackground('#ffffff');
     }
@@ -3362,8 +3372,11 @@ function deadlineBadgeHtml(isoDate) {
 }
 
 function isCompleted(c) { return getStatus(c) === 'completed'; }
+// 'not-applicable' is a sticky status (never auto-resets by period) and is
+// excluded from progress, pending counts, missed history and deadline alerts.
+function isNA(c) { return getStatus(c) === 'not-applicable'; }
 function deptStats(id) {
-  const items = allCompliances().filter(c => c.dept === id);
+  const items = allCompliances().filter(c => c.dept === id && !isNA(c));
   const total = items.length;
   const done = items.filter(isCompleted).length;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
@@ -3622,7 +3635,7 @@ function showDept(id) {
     btn.classList.toggle('active', btn.dataset.type === typeFilter);
   });
 
-  const typeFiltered = typeFilter === 'all' ? items : typeFilter === 'not-done' ? items.filter(c => getStatus(c) !== 'completed') : items.filter(c => c.type === typeFilter);
+  const typeFiltered = typeFilter === 'all' ? items : typeFilter === 'not-done' ? items.filter(c => !isCompleted(c) && !isNA(c)) : items.filter(c => c.type === typeFilter);
   renderStats(typeFiltered);
   renderTable(typeFiltered, false);
   renderDeletedSection(id);
@@ -3654,7 +3667,7 @@ function showManagement() {
   lucide.createIcons();
   const all = allCompliances();
   const deptScoped = deptFilterVal === 'all' ? all : all.filter(c => c.dept === deptFilterVal);
-  const typeFiltered = typeFilter === 'all' ? deptScoped : typeFilter === 'not-done' ? deptScoped.filter(c => getStatus(c) !== 'completed') : deptScoped.filter(c => c.type === typeFilter);
+  const typeFiltered = typeFilter === 'all' ? deptScoped : typeFilter === 'not-done' ? deptScoped.filter(c => !isCompleted(c) && !isNA(c)) : deptScoped.filter(c => c.type === typeFilter);
   const deptLabel = deptFilterVal === 'all' ? null : (DEPARTMENTS.find(d => d.id === deptFilterVal) || {}).name;
   document.getElementById('dept-meta').textContent = deptLabel
     ? `${deptScoped.length} compliance item${deptScoped.length === 1 ? '' : 's'} · ${deptLabel}`
@@ -3930,6 +3943,8 @@ function showStatDrilldown(title, complianceList) {
     const st = getStatus(c);
     const pill = st === 'completed'
       ? `<span style="background:#edf7f2;color:#2a8f5e;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;">Completed</span>`
+      : st === 'not-applicable'
+      ? `<span style="background:#eceef0;color:#57636d;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;">Not Applicable</span>`
       : st === 'in-progress'
       ? `<span style="background:#fef8e1;color:#b88410;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;">In Progress</span>`
       : `<span style="background:#fde8e8;color:#b03030;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;">Not Started</span>`;
@@ -3975,20 +3990,23 @@ function showStatDrilldown(title, complianceList) {
 }
 
 function renderStats(items) {
-  function breakdownHtml(subset, freqLabel) {
+  function breakdownHtml(subsetAll, freqLabel) {
+    const subset  = subsetAll.filter(c => !isNA(c));
+    const naItems = subsetAll.filter(isNA);
     const mand    = subset.filter(c => c.type === 'statutory');
     const nonMand = subset.filter(c => c.type === 'internal');
     const mDone    = mand.filter(c => getStatus(c) === 'completed');
     const mNotDone = mand.filter(c => getStatus(c) !== 'completed');
     const nmDone    = nonMand.filter(c => getStatus(c) === 'completed');
     const nmNotDone = nonMand.filter(c => getStatus(c) !== 'completed');
-    if (subset.length === 0) return '';
+    if (subsetAll.length === 0) return '';
     window._statListCache = window._statListCache || {};
     const cacheKey = (k) => freqLabel + ':' + k;
     window._statListCache[cacheKey('md')]  = mDone;
     window._statListCache[cacheKey('mp')]  = mNotDone;
     window._statListCache[cacheKey('nmd')] = nmDone;
     window._statListCache[cacheKey('nmp')] = nmNotDone;
+    window._statListCache[cacheKey('na')]  = naItems;
 
     const chip = (key, list, cls, label) => list.length
       ? `<span class="stat-chip ${cls} stat-tag-btn" style="cursor:pointer;"
@@ -4027,7 +4045,11 @@ function renderStats(items) {
         </div>
       </div>` : '';
 
-    return `<div class="stat-breakdown">${mandBlock}${nonMandBlock}</div>`;
+    const naBlock = naItems.length
+      ? `<div class="stat-done-row" style="margin-top:6px;">${chip('na', naItems, 'stat-chip-na', 'N/A')}</div>`
+      : '';
+
+    return `<div class="stat-breakdown">${mandBlock}${nonMandBlock}${naBlock}</div>`;
   }
 
   const byFreq = (f) => items.filter(c => c.frequency === f);
@@ -4111,7 +4133,7 @@ function renderTable(items, showDeptCol) {
 
   // Apply type filter + search filter
   const filteredItems = items
-    .filter(c => typeFilter === 'all' ? true : typeFilter === 'not-done' ? getStatus(c) !== 'completed' : c.type === typeFilter)
+    .filter(c => typeFilter === 'all' ? true : typeFilter === 'not-done' ? (!isCompleted(c) && !isNA(c)) : c.type === typeFilter)
     .filter(matchesSearch);
 
   // Update search meta
@@ -4132,11 +4154,11 @@ function renderTable(items, showDeptCol) {
       const bStat = (b.c.type === 'statutory') ? 0 : 1;
       if (aStat !== bStat) return aStat - bStat;
       // 2) Within same type: not-completed before completed
-      const aDone = isCompleted(a.c) ? 1 : 0;
-      const bDone = isCompleted(b.c) ? 1 : 0;
+      const aDone = isNA(a.c) ? 2 : isCompleted(a.c) ? 1 : 0;
+      const bDone = isNA(b.c) ? 2 : isCompleted(b.c) ? 1 : 0;
       if (aDone !== bDone) return aDone - bDone;
       // 3) Within not-completed: Priority (Very Important → ... → Not Important)
-      if (!isCompleted(a.c) && !isCompleted(b.c)) {
+      if (aDone === 0 && bDone === 0) {
         const aPri = priorityRank(getPriority(a.c));
         const bPri = priorityRank(getPriority(b.c));
         if (aPri !== bPri) return aPri - bPri;
@@ -4177,12 +4199,14 @@ function renderTable(items, showDeptCol) {
       ['not-started', 'New'],
       ['in-progress', 'In Progress'],
       ['completed',   'Done'],
+      ['not-applicable', 'Not Applicable'],
     ].map(([v, lbl]) => `<option value="${v}" ${status === v ? 'selected' : ''}>${lbl}</option>`).join('');
     const typePill = c.type === 'statutory'
       ? '<span class="type-pill type-statutory"><i data-lucide="scale" style="width:9px;height:9px;vertical-align:middle;margin-right:3px;"></i>Statutory</span>'
       : '<span class="type-pill type-internal"><i data-lucide="building-2" style="width:9px;height:9px;vertical-align:middle;margin-right:3px;"></i>Internal</span>';
     const rowClasses = [
       isDone ? 'row-completed' : '',
+      status === 'not-applicable' ? 'row-na' : '',
       c.type === 'statutory' ? 'statutory-row' : '',
     ].filter(Boolean).join(' ');
 
@@ -5007,6 +5031,7 @@ async function checkAndRecordMissed() {
     const missed = allCompliances()
       .filter(c => c.frequency === 'Monthly' || c.frequency === 'Event-based')
       .filter(c => statusMap[compId(c)] !== `completed:${prevMonth}`)
+        .filter(c => statusMap[compId(c)] !== 'not-applicable')
       .map(_missedMap);
     await fetch('/api/missed', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -5023,6 +5048,7 @@ async function checkAndRecordMissed() {
       const missed = allCompliances()
         .filter(c => c.frequency === 'Quarterly')
         .filter(c => statusMap[compId(c)] !== `completed:${prevQ}`)
+        .filter(c => statusMap[compId(c)] !== 'not-applicable')
         .map(_missedMap);
       await fetch('/api/missed', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -5040,6 +5066,7 @@ async function checkAndRecordMissed() {
       const missed = allCompliances()
         .filter(c => c.frequency === 'Annual')
         .filter(c => statusMap[compId(c)] !== `completed:${prevFY}`)
+        .filter(c => statusMap[compId(c)] !== 'not-applicable')
         .map(_missedMap);
       await fetch('/api/missed', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
